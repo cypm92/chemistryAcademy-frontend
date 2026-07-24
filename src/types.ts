@@ -36,3 +36,18 @@ export interface MaterialGrant {
   can_download: boolean
   user: User
 }
+
+export interface StudentMaterialGrant {
+  id: number
+  user_id: number
+  material_id: number
+  starts_at: string
+  expires_at: string
+  can_download: boolean
+  material: {
+    id: number
+    title: string
+    filename: string
+    kind: 'video' | 'pdf'
+  }
+}
