@@ -18,6 +18,7 @@ function leave() {
       </RouterLink>
       <nav>
         <RouterLink to="/">Mi biblioteca</RouterLink>
+        <RouterLink v-if="session.user.role === 'admin'" to="/students">Alumnos</RouterLink>
         <RouterLink v-if="session.user.role === 'admin'" to="/admin">Administración</RouterLink>
       </nav>
       <div class="account">
@@ -28,4 +29,3 @@ function leave() {
     <main><RouterView /></main>
   </div>
 </template>
-

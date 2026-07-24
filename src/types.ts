@@ -10,6 +10,7 @@ export interface Material {
   id: number
   title: string
   description: string
+  folder: Folder | null
   kind: 'video' | 'pdf'
   filename: string
   content_type: string
@@ -17,6 +18,13 @@ export interface Material {
   expires_at?: string
   can_download: boolean
   grants?: MaterialGrant[]
+}
+
+export interface Folder {
+  id: number
+  name: string
+  parent_id: number | null
+  path: string
 }
 
 export interface MaterialGrant {

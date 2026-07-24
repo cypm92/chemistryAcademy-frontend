@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import LoginView from './views/LoginView.vue'
 import LibraryView from './views/LibraryView.vue'
 import AdminView from './views/AdminView.vue'
+import StudentsView from './views/StudentsView.vue'
 import { session } from './services/session'
 
 const router = createRouter({
@@ -10,6 +11,7 @@ const router = createRouter({
     { path: '/login', component: LoginView, meta: { public: true } },
     { path: '/', component: LibraryView },
     { path: '/admin', component: AdminView, meta: { admin: true } },
+    { path: '/students', component: StudentsView, meta: { admin: true } },
   ],
 })
 
@@ -20,4 +22,3 @@ router.beforeEach((to) => {
 })
 
 export default router
-
