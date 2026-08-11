@@ -13,9 +13,13 @@ export function saveSession(token: string, user: User) {
   session.user = user
 }
 
+export function updateSessionUser(user: User) {
+  localStorage.setItem('academy_user', JSON.stringify(user))
+  session.user = user
+}
+
 export function logout() {
   localStorage.removeItem('academy_token')
   localStorage.removeItem('academy_user')
   session.user = null
 }
-

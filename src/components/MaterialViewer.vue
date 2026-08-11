@@ -8,6 +8,7 @@ const emit = defineEmits<{ close: [] }>()
 const url = ref('')
 const loading = ref(false)
 const video = ref<HTMLVideoElement | null>(null)
+const videoPlayer = ref<HTMLElement | null>(null)
 const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
@@ -47,6 +48,12 @@ function setPlaybackRate(rate: number) {
   if (video.value) video.value.playbackRate = rate
 }
 
+async function toggleFullscreen() {
+  if (!videoPlayer.value) return
+  if (document.fullscreenElement) await document.exitFullscreen()
+  else await videoPlayer.value.requestFullscreen()
+}
+
 watch(() => props.material, async (material) => {
   if (url.value) URL.revokeObjectURL(url.value)
   url.value = ''
@@ -71,7 +78,7 @@ onBeforeUnmount(() => { if (url.value) URL.revokeObjectURL(url.value) })
       </div>
       <div class="viewer-body" @contextmenu.prevent>
         <p v-if="loading">Preparando material…</p>
-        <div v-else-if="material.kind === 'video'" class="video-player">
+        <div v-else-if="material.kind === 'video'" ref="videoPlayer" class="video-player">
           <video ref="video" :src="url" controlsList="nodownload" disablePictureInPicture @click="togglePlayback"
             @loadedmetadata="duration = video?.duration || 0" @timeupdate="currentTime = video?.currentTime || 0"
             @canplay="video && (video.volume = volume, video.playbackRate = playbackRate)"
@@ -92,6 +99,7 @@ onBeforeUnmount(() => { if (url.value) URL.revokeObjectURL(url.value) })
             <input class="video-volume" type="range" min="0" max="100" step="1" :value="volume * 100" aria-label="Volumen"
               :style="{ background: `linear-gradient(to right, #71b9ef 0%, #71b9ef ${volume * 100}%, #ffffff55 ${volume * 100}%, #ffffff55 100%)` }" @input="setVolume" />
             <span class="video-volume-value">{{ Math.round(volume * 100) }}%</span>
+            <button type="button" class="video-control-button fullscreen-button" aria-label="Pantalla completa" title="Pantalla completa" @click="toggleFullscreen">⛶</button>
           </div>
         </div>
         <iframe v-else :src="`${url}#toolbar=0&navpanes=0`" title="Documento PDF" />
