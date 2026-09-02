@@ -1,14 +1,21 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { api, errorMessage } from '../services/api'
 import { saveSession } from '../services/session'
+import becienciaLogo from '../assets/beciencia-circular.svg'
+import LogoViewer from '../components/LogoViewer.vue'
+import { branding, loadBranding } from '../services/theme'
 
 const router = useRouter()
-const mode = ref<'login' | 'register'>('login')
+const route = useRoute()
+const mode = ref<'login' | 'register'>(route.query.mode === 'register' ? 'register' : 'login')
 const form = ref({ name: '', email: '', password: '' })
 const busy = ref(false)
 const error = ref('')
+const logoOpen = ref(false)
+
+onMounted(() => { void loadBranding() })
 
 async function submit() {
   busy.value = true; error.value = ''
@@ -19,7 +26,7 @@ async function submit() {
     } else {
       const { data } = await api.post('/auth/login', { email: form.value.email, password: form.value.password })
       saveSession(data.access_token, data.user)
-      router.push(data.user.role === 'admin' ? '/admin' : '/')
+      router.push(data.user.role === 'admin' ? '/admin' : '/library')
     }
   } catch (e) { error.value = errorMessage(e) }
   finally { busy.value = false }
@@ -29,7 +36,9 @@ async function submit() {
 <template>
   <section class="auth-page">
     <div class="auth-intro">
-      <div class="brand light"><span class="brand-mark">Å</span><span><b>ÁTOMO</b><small>Academia de química</small></span></div>
+      <button class="brand light" type="button" aria-label="Ampliar logo de BeCiencia Academia" @click="logoOpen = true">
+        <img class="brand-logo" :src="branding.logoUrl || becienciaLogo" alt="" />
+      </button>
       <p class="eyebrow">APRENDE · EXPERIMENTA · COMPRENDE</p>
       <h1>La química deja de ser difícil cuando puedes <em>verla.</em></h1>
       <p>Clases, explicaciones y recursos preparados para que avances a tu ritmo.</p>
@@ -48,6 +57,6 @@ async function submit() {
         {{ mode === 'login' ? '¿Primera vez? Crear cuenta de invitado' : 'Ya tengo cuenta' }}
       </button>
     </form>
+    <LogoViewer v-if="logoOpen" :logo-src="branding.logoUrl" @close="logoOpen = false" />
   </section>
 </template>
-

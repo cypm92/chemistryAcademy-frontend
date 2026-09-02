@@ -1,12 +1,18 @@
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { protectedBlobUrl } from './services/api'
 import { logout, session } from './services/session'
+import becienciaLogo from './assets/beciencia-circular.svg'
+import LogoViewer from './components/LogoViewer.vue'
+import BrandSettings from './components/BrandSettings.vue'
+import { branding, loadBranding } from './services/theme'
 
 const router = useRouter()
 const menuOpen = ref(false)
 const avatarUrl = ref('')
+const logoOpen = ref(false)
+const brandSettingsOpen = ref(false)
 
 watch(() => session.user, async (user) => {
   if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value)
@@ -16,26 +22,30 @@ watch(() => session.user, async (user) => {
 }, { immediate: true })
 
 onBeforeUnmount(() => { if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value) })
+onMounted(() => { void loadBranding() })
+
+function handleBrandClick() {
+  if (session.user?.role === 'admin') brandSettingsOpen.value = true
+  else logoOpen.value = true
+}
 
 function leave() {
   menuOpen.value = false
   logout()
-  router.push('/login')
+  router.push('/')
 }
 </script>
 
 <template>
   <div class="app-shell">
     <header v-if="session.user" class="topbar">
-      <RouterLink to="/" class="brand">
-        <span class="brand-mark">Á</span>
-        <span><b>ÁTOMO</b><small>Academia de química</small></span>
-      </RouterLink>
+      <button class="brand" type="button" :aria-label="session.user.role === 'admin' ? 'Editar identidad visual' : 'Ampliar logo de BeCiencia Academia'" @click="handleBrandClick">
+        <img class="brand-logo" :src="branding.logoUrl || becienciaLogo" alt="" />
+      </button>
       <nav>
-        <RouterLink to="/">Mi biblioteca</RouterLink>
+        <RouterLink to="/library">Mi biblioteca</RouterLink>
         <RouterLink to="/reservations">Mis reservas</RouterLink>
         <RouterLink to="/classes">Mis clases</RouterLink>
-        <RouterLink v-if="session.user.role === 'admin'" to="/students">Alumnos</RouterLink>
         <RouterLink v-if="session.user.role === 'admin'" to="/admin">Administración</RouterLink>
       </nav>
       <div class="account-menu">
@@ -51,5 +61,7 @@ function leave() {
       </div>
     </header>
     <main><RouterView /></main>
+    <LogoViewer v-if="logoOpen" :logo-src="branding.logoUrl" @close="logoOpen = false" />
+    <BrandSettings v-if="brandSettingsOpen" @close="brandSettingsOpen = false" />
   </div>
 </template>
