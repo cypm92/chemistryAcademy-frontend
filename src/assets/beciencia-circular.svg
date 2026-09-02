@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="BeCiencia Academia">
+  <circle cx="100" cy="100" r="96" fill="#F7F4EF" stroke="#1D6B4F" stroke-width="5"/>
+  <rect x="63" y="46" width="74" height="74" rx="9.6" fill="#1D6B4F"/>
+  <text x="70" y="63" font-family="JetBrains Mono, monospace" font-size="12" fill="#F7F4EF" fill-opacity="0.55">4</text>
+  <text x="100" y="93" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="900" font-size="32" fill="#F7F4EF">Be</text>
+  <text x="100" y="113" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="9.5" fill="#F7F4EF" fill-opacity="0.55">9.012</text>
+  <text x="101" y="139" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="800" font-size="21" letter-spacing="2.1" fill="#2C2C38">CIENCIA</text>
+  <text x="101" y="154" text-anchor="middle" font-family="Outfit, sans-serif" font-weight="600" font-size="9" letter-spacing="2.5" fill="#2C2C38" fill-opacity="0.45">ACADEMIA</text>
+</svg>

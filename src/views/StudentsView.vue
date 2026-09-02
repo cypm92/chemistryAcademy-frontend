@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { api, errorMessage } from '../services/api'
 import type { StudentMaterialGrant, User } from '../types'
+
+const props = withDefaults(defineProps<{ embedded?: boolean; refreshKey?: number }>(), { embedded: false, refreshKey: 0 })
 
 const users = ref<User[]>([])
 const loading = ref(true)
@@ -58,10 +60,11 @@ async function removeGrant(grant: StudentMaterialGrant) {
   catch (e) { error.value = errorMessage(e) }
 }
 onMounted(async () => { try { await load() } catch (e) { error.value = errorMessage(e) } finally { loading.value = false } })
+watch(() => props.refreshKey, () => { void load() })
 </script>
 
 <template>
-  <section class="page students-page">
+  <section :class="props.embedded ? 'students-embedded' : 'page students-page'">
     <p v-if="notice" class="success-alert">{{ notice }}</p><p v-if="error" class="alert">{{ error }}</p>
     <p v-if="loading" class="empty">Cargando alumnos…</p>
     <div v-else class="students-panel">

@@ -33,6 +33,8 @@ export interface Folder {
   name: string
   parent_id: number | null
   path: string
+  color: string | null
+  effective_color: string | null
 }
 
 export interface MaterialGrant {
