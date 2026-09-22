@@ -24,10 +24,8 @@ jobs:
         with:
           node-version: 22
       - name: Instalar dependencias
-        run: |
-          corepack enable
-          pnpm install --frozen-lockfile
+        run: corepack pnpm@10.17.0 install --frozen-lockfile
       - name: Comprobar tipos
-        run: pnpm type-check
+        run: corepack pnpm@10.17.0 type-check
       - name: Generar aplicación de producción
-        run: pnpm build
+        run: corepack pnpm@10.17.0 build
