@@ -6,6 +6,7 @@ import ProfileView from './views/ProfileView.vue'
 import ReservationsView from './views/ReservationsView.vue'
 import ClassesView from './views/ClassesView.vue'
 import HomeView from './views/HomeView.vue'
+import LegalView from './views/LegalView.vue'
 import { session } from './services/session'
 
 const router = createRouter({
@@ -13,6 +14,10 @@ const router = createRouter({
   routes: [
     { path: '/', component: HomeView, meta: { public: true } },
     { path: '/login', component: LoginView, meta: { public: true } },
+    { path: '/aviso-legal', component: LegalView, meta: { public: true } },
+    { path: '/privacidad', component: LegalView, meta: { public: true } },
+    { path: '/cookies', component: LegalView, meta: { public: true } },
+    { path: '/terminos', component: LegalView, meta: { public: true } },
     { path: '/library', component: LibraryView },
     { path: '/admin', component: AdminView, meta: { admin: true } },
     { path: '/students', redirect: '/admin' },

@@ -6,6 +6,7 @@ import { saveSession } from '../services/session'
 import becienciaLogo from '../assets/beciencia-circular.svg'
 import LogoViewer from '../components/LogoViewer.vue'
 import { branding, loadBranding } from '../services/theme'
+import LegalConsent from '../components/LegalConsent.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -51,11 +52,14 @@ async function submit() {
       <label v-if="mode === 'register'">Nombre<input v-model="form.name" required minlength="2" /></label>
       <label>Email<input v-model="form.email" type="email" required placeholder="tu@email.com" /></label>
       <label>Contraseña<input v-model="form.password" type="password" required minlength="8" /></label>
+      <LegalConsent v-if="mode === 'register'" purpose="crear y gestionar mi cuenta de alumno" />
+      <label v-if="mode === 'register'" class="legal-consent"><input type="checkbox" required /><span>Confirmo que tengo al menos 14 años o que actúo con autorización de mi madre, padre o tutor legal.</span></label>
       <p v-if="error" class="alert">{{ error }}</p>
       <button class="primary" :disabled="busy">{{ busy ? 'Un momento…' : mode === 'login' ? 'Entrar en mi espacio' : 'Crear cuenta' }}</button>
       <button type="button" class="link-button" @click="mode = mode === 'login' ? 'register' : 'login'">
         {{ mode === 'login' ? '¿Primera vez? Crear cuenta de invitado' : 'Ya tengo cuenta' }}
       </button>
+      <RouterLink class="auth-back-home" to="/">← Volver a la página principal</RouterLink>
     </form>
     <LogoViewer v-if="logoOpen" :logo-src="branding.logoUrl" @close="logoOpen = false" />
   </section>

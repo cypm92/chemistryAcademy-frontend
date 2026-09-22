@@ -4,3 +4,153 @@
   font-weight: 800;
   letter-spacing: 0.16em;
 }
+
+.bc-footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px;
+}
+
+@media (max-width: 700px) {
+  .bc-footer-links { gap: 10px 14px; }
+}
+
+/* Paleta clara de la sección de contacto. */
+.bc-contact {
+  background: #f1f5f0;
+}
+
+.bc-contact h2 {
+  color: #292735;
+}
+
+.bc-contact > div > div > p:not(.bc-section-number),
+.bc-contact ul {
+  color: #62616b;
+}
+
+.bc-contact .bc-section-number,
+.bc-contact li::before {
+  color: #187055;
+}
+
+.bc-contact-form {
+  border-color: #ded8d0;
+  background: #fffdfa;
+}
+
+.bc-contact-form label {
+  color: #36343e;
+}
+
+.bc-contact-form input,
+.bc-contact-form select,
+.bc-contact-form textarea {
+  border-color: #d7d1c8;
+  background: #fff;
+  color: #292735;
+}
+
+.bc-contact-form input::placeholder,
+.bc-contact-form textarea::placeholder {
+  color: #98939a;
+}
+
+.bc-contact-form .bc-button {
+  border-color: #1d6b4f;
+  background: #1d6b4f;
+}
+
+.bc-contact-form .bc-button:hover {
+  background: #15523b;
+}
+
+/* Planes: ambos paneles claros, con el color reservado a las etiquetas. */
+.bc-classes {
+  background: #fcfbf7;
+  color: #292735;
+}
+
+.bc-classes .bc-section-number {
+  color: #1d6b4f;
+}
+
+.bc-section-lead {
+  color: #696873;
+}
+
+.bc-plan,
+.bc-plan.featured {
+  min-height: 545px;
+  border-color: #e4ded5;
+  background: #fffdfa;
+  color: #292735;
+}
+
+.bc-plan .bc-plan-type,
+.bc-plan.featured .bc-plan-type {
+  width: fit-content;
+  border-radius: 999px;
+  background: #e3eee8;
+  padding: 8px 13px;
+  color: #187055;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .2em;
+}
+
+.bc-plan:not(.featured) .bc-plan-type {
+  background: #e8e3f3;
+  color: #68599a;
+}
+
+.bc-plan h3 {
+  margin: 17px 0 9px;
+  color: #24232d;
+  font-size: 30px;
+}
+
+.bc-plan > p:not(.bc-plan-type),
+.bc-plan.featured > p:not(.bc-plan-type) {
+  color: #62616b;
+}
+
+.bc-plan ul,
+.bc-plan.featured ul {
+  color: #292735;
+}
+
+.bc-plan li::before {
+  color: #187055;
+}
+
+.bc-price,
+.bc-plan.featured .bc-price {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 3px 20px;
+  border-color: #e4ded5;
+  color: #776e77;
+}
+
+.bc-price > :nth-child(1) { grid-column: 1; grid-row: 1; }
+.bc-price > :nth-child(2) { grid-column: 1; grid-row: 2; }
+.bc-price > :nth-child(3) { grid-column: 2; grid-row: 1; }
+.bc-price > :nth-child(4) { grid-column: 2; grid-row: 2; }
+
+.bc-price b {
+  color: #292735;
+  font-size: 26px;
+}
+
+.bc-plan .bc-button {
+  width: auto;
+  align-self: flex-start;
+  padding: 11px 18px;
+}
+
+.bc-plan .bc-button.outline {
+  background: #fffdfa;
+  color: #187055;
+}
