@@ -29,3 +29,13 @@ jobs:
         run: corepack pnpm@10.17.0 type-check
       - name: Generar aplicación de producción
         run: corepack pnpm@10.17.0 build
+
+  build-container:
+    name: Verificar imagen Docker de producción
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir imagen sin publicarla
+        run: docker build --tag chemistry-academy-frontend:ci .
