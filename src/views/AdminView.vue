@@ -19,6 +19,7 @@ const folderSearch = ref('')
 const expandedFolderIds = ref<number[]>([])
 const activeSection = ref<'students' | 'folders'>('students')
 const studentsRefreshKey = ref(0)
+const contactRequests = ref<Array<{ id: number; name: string; contact: string; need: string; message: string; created_at: string }>>([])
 const grant = ref({ user_id: 0, material_id: 0, tag_ids: [] as number[], scope: 'material', duration: 'week', expires_at: '', can_download: false })
 const guests = computed(() => users.value.filter((u) => u.role !== 'admin'))
 const folderRows = computed(() => {
@@ -37,8 +38,9 @@ const folderRows = computed(() => {
 })
 
 async function load() {
-  const [u, m, f, t] = await Promise.all([api.get('/admin/users'), api.get('/admin/materials'), api.get('/admin/folders'), api.get('/admin/tags')])
+  const [u, m, f, t, contacts] = await Promise.all([api.get('/admin/users'), api.get('/admin/materials'), api.get('/admin/folders'), api.get('/admin/tags'), api.get('/admin/contact-requests')])
   users.value = u.data; materials.value = m.data; folders.value = f.data; tags.value = t.data
+  contactRequests.value = contacts.data
   if (!folderSelection.value || !folders.value.some(folder => String(folder.id) === folderSelection.value)) {
     folderSelection.value = String(folders.value.find(folder => folder.name === 'Sin clasificar' && folder.parent_id === null)?.id || '')
   }
@@ -109,6 +111,11 @@ onMounted(() => load().catch((e) => error.value = errorMessage(e)))
       </section>
     </div>
     <StudentsView v-if="activeSection === 'students'" embedded :refresh-key="studentsRefreshKey" />
+    <section v-if="activeSection === 'students'" class="contact-requests-panel">
+      <div class="contact-requests-head"><div><p class="eyebrow">NUEVOS CONTACTOS</p><h2>Solicitudes desde la portada</h2><p>Mensajes enviados por personas que todavía no tienen cuenta.</p></div><span>{{ contactRequests.length }}</span></div>
+      <div v-if="contactRequests.length" class="contact-requests-list"><article v-for="request in contactRequests" :key="request.id"><div><b>{{ request.name }}</b><small>{{ request.contact }} · {{ request.need }}</small></div><p>{{ request.message || 'Sin mensaje adicional.' }}</p><time>{{ new Date(request.created_at).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }) }}</time></article></div>
+      <p v-else class="contact-requests-empty">No hay solicitudes de contacto nuevas.</p>
+    </section>
     <section v-if="activeSection === 'folders'" class="folders-explorer-panel">
       <div class="folders-explorer-head"><div><h2>Carpetas</h2><p>Busca, despliega, edita o elimina cualquier carpeta de la biblioteca.</p></div><span>{{ folders.length }} {{ folders.length === 1 ? 'carpeta' : 'carpetas' }}</span></div>
       <label class="folder-search"><span>⌕</span><input v-model="folderSearch" placeholder="Buscar carpeta..." /></label>
