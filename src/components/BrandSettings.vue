@@ -4,6 +4,7 @@ import { api, errorMessage } from '../services/api'
 import { applyThemeColor, branding, loadBranding } from '../services/theme'
 import defaultLogo from '../assets/beciencia-circular.svg'
 import LogoViewer from './LogoViewer.vue'
+import HomeSettings from './HomeSettings.vue'
 
 const emit = defineEmits<{ close: [] }>()
 const color = ref(branding.value.primaryColor)
@@ -13,6 +14,7 @@ const saving = ref(false)
 const error = ref('')
 const notice = ref('')
 const logoPreviewOpen = ref(false)
+const homeSettingsOpen = ref(false)
 
 function onKeydown(event: KeyboardEvent) { if (event.key === 'Escape') emit('close') }
 function selectLogo(event: Event) {
@@ -52,10 +54,12 @@ onBeforeUnmount(() => { document.removeEventListener('keydown', onKeydown); docu
         <label class="color-field">Color corporativo<input v-model="color" type="color" @input="applyThemeColor(color)" /><span>{{ color }}</span></label>
         <div class="branding-color-preview" :style="{ backgroundColor: color }"><b>BeCiencia</b><span>Muestra del color</span></div>
         <button class="branding-preview-button secondary" type="button" @click="logoPreviewOpen = true">Ver logo ampliado</button>
+        <button class="branding-preview-button secondary" type="button" @click="homeSettingsOpen = true">Editar portada pública</button>
         <p v-if="error" class="alert">{{ error }}</p><p v-if="notice" class="success-alert">{{ notice }}</p>
       </div>
       <footer><button class="secondary" type="button" @click="emit('close')">Cerrar</button><button class="primary" :disabled="saving">{{ saving ? 'Guardando…' : 'Guardar cambios' }}</button></footer>
     </form>
     <LogoViewer v-if="logoPreviewOpen" :logo-src="localPreview || branding.logoUrl || defaultLogo" @close="logoPreviewOpen = false" />
+    <HomeSettings v-if="homeSettingsOpen" @close="homeSettingsOpen = false" />
   </div>
 </template>
