@@ -72,6 +72,25 @@
 @media (max-width:900px) { .admin-tab-grid { grid-template-columns:1fr } }
 .folder-admin-list { grid-auto-rows:38px;align-content:start }.folder-admin-list article { height:38px;min-height:38px;overflow:hidden }
 .students-embedded { margin-top:24px }.students-embedded .students-panel { box-shadow:0 12px 34px #10251d0a }
+.student-edit-form { grid-template-columns:repeat(4,minmax(0,1fr));align-items:end }
+.student-edit-form input,.student-edit-form select { width:100%;min-width:0;padding:9px }
+.student-edit-form .check { align-self:center }
+.student-edit-form .check input { width:auto }
+.student-edit-form .edit-actions { grid-column:3 / -1;justify-content:flex-end }
+.contact-requests-panel { margin-top:24px;overflow:hidden;border:1px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:0 12px 34px #10251d0a }
+.contact-requests-head { display:flex;justify-content:space-between;align-items:center;gap:18px;padding:22px 26px;border-bottom:1px solid var(--line) }
+.contact-requests-head h2 { margin:0;font:600 30px 'Fraunces' }
+.contact-requests-head p { margin:5px 0 0;color:var(--muted);font-size:13px }
+.contact-requests-head>span { flex:0 0 auto;border-radius:20px;background:var(--mint);padding:7px 10px;color:var(--brand-green);font-size:12px;font-weight:700 }
+.contact-requests-list article { display:grid;grid-template-columns:minmax(180px,1fr) minmax(0,2fr) auto;align-items:start;gap:22px;padding:18px 26px;border-bottom:1px solid var(--line) }
+.contact-requests-list article:last-child { border-bottom:0 }
+.contact-requests-list b,.contact-requests-list small { display:block }
+.contact-requests-list b { color:var(--ink);font-size:14px }
+.contact-requests-list small { margin-top:5px;color:var(--muted);font-size:12px;overflow-wrap:anywhere }
+.contact-requests-list p { margin:0;color:var(--ink);font-size:13px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere }
+.contact-requests-list time { color:var(--muted);font-size:11px;white-space:nowrap }
+.contact-requests-empty { margin:0;padding:30px 26px;color:var(--muted);font-size:13px }
+@media(max-width:700px) { .contact-requests-head { align-items:flex-start;padding:19px }.contact-requests-head h2 { font-size:25px }.contact-requests-list article { grid-template-columns:1fr;gap:9px;padding:18px 19px }.contact-requests-empty { padding:24px 19px } }
 @media (min-width:901px) { .admin-page.admin-page-students { height:auto;min-height:calc(100dvh - 82px);overflow:visible }.admin-page-students .admin-tab-grid { height:430px;grid-template-rows:minmax(0,1fr) }.admin-page-students .admin-tab-grid>.panel { height:100%;overflow:auto } }
 .folders-explorer-panel { margin-top:24px;padding:24px 26px;border:1px solid var(--line);border-radius:18px;background:var(--paper);box-shadow:0 12px 34px #10251d0a }.folders-explorer-head { display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding-bottom:16px;border-bottom:1px solid var(--line) }.folders-explorer-head h2 { margin:0;font:600 28px 'Fraunces' }.folders-explorer-head p { margin:5px 0 0;color:var(--muted);font-size:12px }.folders-explorer-head>span { flex:0 0 auto;border-radius:20px;background:var(--mint);padding:7px 10px;color:var(--brand-green);font-size:11px;font-weight:700 }.folders-explorer-panel .folder-search { margin-top:16px!important }.folders-explorer-panel .folder-admin-list { max-height:none!important;margin-top:14px!important }.folders-explorer-panel .folder-admin-list article { width:100% }
 @media (min-width:901px) { .admin-page.admin-page-folders { height:auto;min-height:calc(100dvh - 82px);overflow:visible }.admin-page-folders .admin-tab-grid { height:430px;grid-template-rows:minmax(0,1fr) }.admin-page-folders .admin-tab-grid>.panel { height:100%;overflow:auto } }

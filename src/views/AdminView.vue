@@ -44,7 +44,7 @@ async function load() {
   if (!folderSelection.value || !folders.value.some(folder => String(folder.id) === folderSelection.value)) {
     folderSelection.value = String(folders.value.find(folder => folder.name === 'Sin clasificar' && folder.parent_id === null)?.id || '')
   }
-  if (!grant.value.user_id && guests.value[0]) grant.value.user_id = guests.value[0].id
+  if (!guests.value.some((user) => user.id === grant.value.user_id)) grant.value.user_id = guests.value[0]?.id || 0
   if (!grant.value.material_id && materials.value[0]) grant.value.material_id = materials.value[0].id
   if (!grant.value.tag_ids.length && tags.value[0]) grant.value.tag_ids = [tags.value[0].id]
 }
@@ -112,7 +112,7 @@ onMounted(() => load().catch((e) => error.value = errorMessage(e)))
     </div>
     <StudentsView v-if="activeSection === 'students'" embedded :refresh-key="studentsRefreshKey" />
     <section v-if="activeSection === 'students'" class="contact-requests-panel">
-      <div class="contact-requests-head"><div><p class="eyebrow">NUEVOS CONTACTOS</p><h2>Solicitudes desde la portada</h2><p>Mensajes enviados por personas que todavía no tienen cuenta.</p></div><span>{{ contactRequests.length }}</span></div>
+      <div class="contact-requests-head"><div><h2>Solicitudes desde la portada</h2><p>Mensajes enviados por personas que todavía no tienen cuenta.</p></div><span>{{ contactRequests.length }} {{ contactRequests.length === 1 ? 'solicitud' : 'solicitudes' }}</span></div>
       <div v-if="contactRequests.length" class="contact-requests-list"><article v-for="request in contactRequests" :key="request.id"><div><b>{{ request.name }}</b><small>{{ request.contact }} · {{ request.need }}</small></div><p>{{ request.message || 'Sin mensaje adicional.' }}</p><time>{{ new Date(request.created_at).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }) }}</time></article></div>
       <p v-else class="contact-requests-empty">No hay solicitudes de contacto nuevas.</p>
     </section>
