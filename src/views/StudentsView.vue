@@ -11,7 +11,7 @@ const error = ref('')
 const notice = ref('')
 const searchQuery = ref('')
 const editingId = ref<number | null>(null)
-const draft = ref({ name: '', email: '', password: '', is_active: true })
+const draft = ref({ name: '', email: '', password: '', role: 'guest' as User['role'], is_active: true })
 const selectedStudent = ref<User | null>(null)
 const grants = ref<StudentMaterialGrant[]>([])
 const grantsLoading = ref(false)
@@ -23,16 +23,24 @@ const filteredUsers = computed(() => {
   return users.value.filter((user) => `${user.name} ${user.email} ${user.role}`.toLocaleLowerCase('es').includes(query))
 })
 async function load() { users.value = (await api.get('/admin/users')).data }
-function startEdit(user: User) { editingId.value = user.id; draft.value = { name: user.name, email: user.email, password: '', is_active: user.is_active } }
+function startEdit(user: User) { editingId.value = user.id; draft.value = { name: user.name, email: user.email, password: '', role: user.role, is_active: user.is_active } }
 function cancelEdit() { editingId.value = null }
 function localDateTime(value: string) { const date = new Date(value); return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16) }
 async function save(userId: number) {
   error.value = ''; notice.value = ''
+  const user = users.value.find((item) => item.id === userId)
+  if (!user) { error.value = 'No se ha encontrado el usuario.'; return }
+  if (draft.value.role !== user.role) {
+    const message = draft.value.role === 'admin'
+      ? `¿Dar a ${user.name} acceso de administrador a toda la plataforma?`
+      : `¿Quitar a ${user.name} el acceso de administrador?`
+    if (!window.confirm(message)) return
+  }
   try {
-    const payload: Record<string, string | boolean> = { name: draft.value.name, email: draft.value.email, is_active: draft.value.is_active }
+    const payload: Record<string, string | boolean> = { name: draft.value.name, email: draft.value.email, role: draft.value.role, is_active: draft.value.is_active }
     if (draft.value.password) payload.password = draft.value.password
     await api.patch(`/admin/users/${userId}`, payload)
-    editingId.value = null; notice.value = 'Alumno actualizado correctamente.'; await load()
+    editingId.value = null; notice.value = 'Usuario actualizado correctamente.'; await load()
   } catch (e) { error.value = errorMessage(e) }
 }
 async function remove(user: User) {
@@ -73,7 +81,7 @@ watch(() => props.refreshKey, () => { void load() })
       <div class="students-table-wrap"><table class="students-table"><thead><tr><th>Alumno</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
         <template v-for="user in filteredUsers" :key="user.id">
           <tr v-if="editingId !== user.id"><td><b>{{ user.name }}</b><small>{{ user.email }}</small></td><td><span class="role-badge">{{ user.role === 'admin' ? 'Administradora' : 'Alumno' }}</span></td><td><span :class="['status-badge', { inactive: !user.is_active }]">{{ user.is_active ? 'Activo' : 'Inactivo' }}</span></td><td class="row-actions"><button class="materials-button" @click="openMaterials(user)">Materiales</button><button class="edit-button" @click="startEdit(user)">Editar</button><button class="remove-button" :disabled="user.role === 'admin'" title="Eliminar alumno" @click="remove(user)">×</button></td></tr>
-          <tr v-else class="student-edit-row"><td colspan="4"><div class="student-edit-form"><label>Nombre<input v-model="draft.name" /></label><label>Email<input v-model="draft.email" type="email" /></label><label>Nueva contraseña <small>(opcional)</small><input v-model="draft.password" type="password" minlength="8" /></label><label class="check"><input v-model="draft.is_active" type="checkbox" /> Cuenta activa</label><div class="edit-actions"><button class="primary small" @click="save(user.id)">Guardar</button><button class="secondary small" @click="cancelEdit">Cancelar</button></div></div></td></tr>
+          <tr v-else class="student-edit-row"><td colspan="4"><div class="student-edit-form"><label>Nombre<input v-model="draft.name" /></label><label>Email<input v-model="draft.email" type="email" /></label><label>Perfil<select v-model="draft.role"><option value="guest">Alumno</option><option value="admin">Administrador</option></select></label><label>Nueva contraseña <small>(opcional)</small><input v-model="draft.password" type="password" minlength="8" /></label><label class="check"><input v-model="draft.is_active" type="checkbox" /> Cuenta activa</label><div class="edit-actions"><button class="primary small" @click="save(user.id)">Guardar</button><button class="secondary small" @click="cancelEdit">Cancelar</button></div></div></td></tr>
         </template>
         <tr v-if="!filteredUsers.length"><td colspan="4" class="no-users">No se han encontrado alumnos.</td></tr>
       </tbody></table></div>
