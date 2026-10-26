@@ -22,6 +22,42 @@ const studentsRefreshKey = ref(0)
 const contactRequests = ref<Array<{ id: number; name: string; contact: string; need: string; message: string; created_at: string }>>([])
 const grant = ref({ user_id: 0, material_id: 0, tag_ids: [] as number[], scope: 'material', duration: 'week', expires_at: '', can_download: false })
 const guests = computed(() => users.value.filter((u) => u.role !== 'admin'))
+const parentFolderOptions = computed(() => {
+  const childrenByParent = new Map<number | null, Folder[]>()
+  for (const folder of folders.value) {
+    const children = childrenByParent.get(folder.parent_id) || []
+    children.push(folder)
+    childrenByParent.set(folder.parent_id, children)
+  }
+
+  for (const children of childrenByParent.values()) {
+    children.sort((a, b) => a.name.localeCompare(b.name, 'es'))
+  }
+
+  // Al editar una carpeta no se puede elegir ni ella misma ni una de sus hijas:
+  // así evitamos crear una estructura circular.
+  const excludedIds = new Set<number>()
+  if (editingFolderId.value !== null) {
+    excludedIds.add(editingFolderId.value)
+    const collectDescendants = (parentId: number) => {
+      for (const child of childrenByParent.get(parentId) || []) {
+        excludedIds.add(child.id)
+        collectDescendants(child.id)
+      }
+    }
+    collectDescendants(editingFolderId.value)
+  }
+
+  const options: Array<{ folder: Folder; depth: number }> = []
+  const visit = (parentId: number | null, depth: number) => {
+    for (const folder of childrenByParent.get(parentId) || []) {
+      if (!excludedIds.has(folder.id)) options.push({ folder, depth })
+      visit(folder.id, depth + 1)
+    }
+  }
+  visit(null, 0)
+  return options
+})
 const folderRows = computed(() => {
   const search = folderSearch.value.trim().toLocaleLowerCase()
   const byId = new Map(folders.value.map((folder) => [folder.id, folder]))
@@ -107,7 +143,7 @@ onMounted(() => load().catch((e) => error.value = errorMessage(e)))
       <form v-if="activeSection === 'students'" class="panel" @submit.prevent="grantAccess"><h2>Compartir con un estudiante</h2><p>Comparte un archivo concreto o todos los materiales que lleven una o varias etiquetas.</p><label>Estudiante<select v-model="grant.user_id" required><option v-for="u in guests" :key="u.id" :value="u.id">{{ u.name }} · {{ u.email }}</option></select></label><label>Compartir<select v-model="grant.scope"><option value="material">Un archivo</option><option value="tag">Una o varias etiquetas</option></select></label><label v-if="grant.scope === 'material'">Material<select v-model="grant.material_id" required><option v-for="m in materials" :key="m.id" :value="m.id">{{ m.title }}</option></select></label><fieldset v-else class="tag-selector"><legend>Etiquetas</legend><p v-if="!tags.length">No hay etiquetas todavía.</p><label v-for="tag in tags" :key="tag.id" class="check"><input v-model="grant.tag_ids" type="checkbox" :value="tag.id" /> {{ tag.name }}</label><small>Incluye los archivos actuales y futuros con cualquiera de las etiquetas seleccionadas.</small></fieldset><label>Duración<select v-model="grant.duration"><option value="week">Una semana</option><option value="month">Un mes</option><option value="custom">Fecha concreta</option></select></label><label v-if="grant.duration === 'custom'">Fin<input v-model="grant.expires_at" type="datetime-local" required /></label><label class="check"><input v-model="grant.can_download" type="checkbox" /> Permitir descarga a este usuario</label><button class="primary">Guardar acceso</button></form>
       <section v-if="activeSection === 'folders'" class="panel folders-admin-panel">
         <h2>Crear carpeta</h2><p>Añade una carpeta raíz o una subcarpeta a la biblioteca.</p>
-        <form @submit.prevent="saveFolder"><label>Nombre<input v-model="folderForm.name" required placeholder="Ej. Formulación" /></label><label>Dentro de<select v-model="folderForm.parent_id"><option value="">Carpeta raíz</option><option v-for="folder in folders.filter(item => item.id !== editingFolderId)" :key="folder.id" :value="String(folder.id)">{{ folder.path }}</option></select></label><div class="folder-form-actions"><button class="primary">{{ editingFolderId ? 'Guardar cambios' : 'Crear carpeta' }}</button><button v-if="editingFolderId" type="button" class="secondary" @click="cancelEditFolder">Cancelar</button></div></form>
+        <form @submit.prevent="saveFolder"><label>Nombre<input v-model="folderForm.name" required placeholder="Ej. Formulación" /></label><label>Dentro de<select v-model="folderForm.parent_id"><option value="">Carpeta raíz</option><option v-for="option in parentFolderOptions" :key="option.folder.id" :value="String(option.folder.id)">{{ `${'— '.repeat(option.depth)}${option.folder.name}` }}</option></select><small>Las subcarpetas aparecen sangradas bajo su carpeta principal.</small></label><div class="folder-form-actions"><button class="primary">{{ editingFolderId ? 'Guardar cambios' : 'Crear carpeta' }}</button><button v-if="editingFolderId" type="button" class="secondary" @click="cancelEditFolder">Cancelar</button></div></form>
       </section>
     </div>
     <StudentsView v-if="activeSection === 'students'" embedded :refresh-key="studentsRefreshKey" />
