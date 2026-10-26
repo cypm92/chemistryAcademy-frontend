@@ -59,6 +59,7 @@ function leave() {
           <button type="button" role="menuitem" @click="leave">Cerrar sesión</button>
         </div>
       </div>
+      <button class="mobile-logout" type="button" @click="leave">Cerrar sesión</button>
     </header>
     <main><RouterView /></main>
     <LogoViewer v-if="logoOpen" :logo-src="branding.logoUrl" @close="logoOpen = false" />
