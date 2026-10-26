@@ -3,3 +3,4 @@ dist/
 *.tsbuildinfo
 .pnpm-store/
 .env
+.env.development.local
