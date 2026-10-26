@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { logout } from './session'
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -9,6 +10,24 @@ api.interceptors.request.use((config) => {
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
+
+let redirectingAfterExpiredSession = false
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status
+    const authorization = error.config?.headers?.Authorization
+    if (status === 401 && authorization && !redirectingAfterExpiredSession) {
+      redirectingAfterExpiredSession = true
+      logout()
+      if (window.location.pathname !== '/login') {
+        window.location.replace('/login?reason=session-expired')
+      }
+    }
+    return Promise.reject(error)
+  },
+)
 
 export function errorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) return error.response?.data?.detail || 'No se pudo completar la operación'
