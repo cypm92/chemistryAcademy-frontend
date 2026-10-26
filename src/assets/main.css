@@ -121,3 +121,5 @@
 
 /* El hueco de la flecha en una carpeta hoja no debe heredar el relleno de .empty. */
 .folder-admin-list .folder-toggle,.folder-admin-list .folder-toggle-placeholder{box-sizing:border-box;flex:0 0 20px;width:20px;height:20px;padding:0}.folder-admin-list .folder-toggle-placeholder{display:block}
+
+.move-material-button{border:1px solid var(--brand-border);background:var(--mint);color:var(--brand-green)}.move-material-button:hover{background:var(--brand-pale)}.folder-move-card .folder-color-body{gap:14px}.folder-move-current{overflow-wrap:anywhere;line-height:1.5}.folder-move-current strong{color:var(--brand-green)}.folder-move-card .folder-color-body label{font-size:12px;font-weight:700}.folder-move-card .folder-color-body select{margin-top:8px}

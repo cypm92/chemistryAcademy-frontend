@@ -7,6 +7,7 @@ import type { Material } from '../types'
 const props = defineProps<{ item: Material }>()
 const emit = defineEmits<{
   open: [item: Material]
+  move: [item: Material]
   changed: []
   notice: [message: string]
   error: [message: string]
@@ -75,7 +76,13 @@ async function toggleFavorite() {
         </div>
         <p v-else class="not-shared">Todavía no está compartido con ningún alumno.</p>
       </div>
-      <div class="card-actions"><button type="button" :class="['favorite-button', { active: item.is_favorite }]" :title="item.is_favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'" :aria-label="item.is_favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'" :aria-pressed="item.is_favorite" @click="toggleFavorite"><svg class="favorite-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z" /></svg></button><button class="primary small" @click="emit('open', item)">Abrir material</button><button v-if="item.can_download" class="secondary small" @click="download">Descargar</button><button v-if="session.user?.role === 'admin'" class="danger small" @click="deleteMaterial">Eliminar</button></div>
+      <div class="card-actions">
+        <button type="button" :class="['favorite-button', { active: item.is_favorite }]" :title="item.is_favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'" :aria-label="item.is_favorite ? 'Quitar de favoritos' : 'Añadir a favoritos'" :aria-pressed="item.is_favorite" @click="toggleFavorite"><svg class="favorite-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z" /></svg></button>
+        <button class="primary small" @click="emit('open', item)">Abrir material</button>
+        <button v-if="session.user?.role === 'admin'" class="secondary small move-material-button" @click="emit('move', item)">Mover</button>
+        <button v-if="item.can_download" class="secondary small" @click="download">Descargar</button>
+        <button v-if="session.user?.role === 'admin'" class="danger small" @click="deleteMaterial">Eliminar</button>
+      </div>
     </div>
   </article>
 </template>
