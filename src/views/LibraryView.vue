@@ -13,7 +13,6 @@ const selected = ref<Material | null>(null)
 const selectedFolderPath = ref('')
 const searchQuery = ref('')
 const searchAllFolders = ref(false)
-const leafFolderPath = ref('')
 const error = ref('')
 const notice = ref('')
 const loading = ref(true)
@@ -74,13 +73,8 @@ const filteredMaterials = computed(() => {
     .some((value) => value?.toLocaleLowerCase('es').includes(query)))
 })
 const fileSectionTitle = computed(() => searchQuery.value.trim() && searchAllFolders.value ? 'Resultados en todas las carpetas' : 'Archivos')
-const selectedLeafFolder = computed(() => findFolder(folderTree.value, leafFolderPath.value))
-const leafPdfMaterials = computed(() => selectedLeafFolder.value?.materials.filter(material => material.kind === 'pdf') || [])
-const leafVideoMaterials = computed(() => selectedLeafFolder.value?.materials.filter(material => material.kind === 'video') || [])
-const isSecondLevel = computed(() => breadcrumbs.value.length === 2)
 
-function selectFolder(path: string) { selectedFolderPath.value = path; leafFolderPath.value = '' }
-function openLeafContents(path: string) { leafFolderPath.value = leafFolderPath.value === path ? '' : path }
+function selectFolder(path: string) { selectedFolderPath.value = path }
 function editFolderColor(folder: LibraryFolderNode) {
   if (!folder.id || session.user?.role !== 'admin') return
   colorFolder.value = folder
@@ -126,9 +120,8 @@ onMounted(async () => { try { await loadMaterials() } catch (e) { error.value = 
       <main class="file-workspace">
         <div class="workspace-top"><div><div class="breadcrumbs"><button v-for="(crumb, index) in breadcrumbs" :key="index" @click="selectFolder(breadcrumbs.slice(0, index + 1).join(' / '))">{{ crumb }}</button></div><h1>{{ activeFolder.name }}</h1><p>{{ activeFolder.materialCount }} {{ activeFolder.materialCount === 1 ? 'material disponible' : 'materiales disponibles' }}</p></div><div class="workspace-summary"><b>{{ activeFolder.children.length }}</b><span>{{ activeFolder.children.length === 1 ? 'subcarpeta' : 'subcarpetas' }}</span></div></div>
         <div class="file-search"><span>⌕</span><input v-model="searchQuery" placeholder="Buscar archivos…" /><label><input v-model="searchAllFolders" type="checkbox" /> Buscar en todas las carpetas</label></div>
-        <section v-if="!searchQuery && activeFolder.children.length" class="folder-section"><div class="section-label">Carpetas</div><div class="folder-tiles"><article v-for="folder in activeFolder.children" :key="folder.path" :class="['folder-tile', { active: leafFolderPath === folder.path }]" :style="{ '--folder-color': folder.color || 'var(--brand-green)' }"><button v-if="session.user?.role === 'admin' && folder.id && !(folder.name === 'Sin clasificar' && folder.parentId === null)" class="folder-tile-color" type="button" :aria-label="`Editar color de ${folder.name}`" title="Editar color" @click.stop="editFolderColor(folder)"><span></span></button><template v-if="isSecondLevel"><button class="folder-tile-open" @click="openLeafContents(folder.path)"><span class="tile-folder-icon">⌑</span><span><b>{{ folder.name }}</b><small>{{ folder.materialCount }} {{ folder.materialCount === 1 ? 'archivo' : 'archivos' }}</small></span><span class="tile-arrow">{{ leafFolderPath === folder.path ? '⌄' : '›' }}</span></button></template><template v-else><button class="folder-tile-open" @click="selectFolder(folder.path)"><span class="tile-folder-icon">⌑</span><span><b>{{ folder.name }}</b><small>{{ folder.materialCount }} {{ folder.materialCount === 1 ? 'archivo' : 'archivos' }}</small></span><span class="tile-arrow">›</span></button></template></article></div></section>
-        <section v-if="selectedLeafFolder" class="leaf-content-section"><div class="section-label">{{ selectedLeafFolder.name }}</div><div class="leaf-resource-grid"><section class="leaf-resource-card"><h3>PDFs asociados <span>{{ leafPdfMaterials.length }}</span></h3><div v-if="leafPdfMaterials.length" class="file-list"><LibraryMaterialCard v-for="item in leafPdfMaterials" :key="item.id" :item="item" @open="selected = $event" @changed="reloadMaterials" @notice="notice = $event" @error="error = $event" /></div><p v-else>No hay PDFs asociados.</p></section><section class="leaf-resource-card"><h3>Vídeos asociados <span>{{ leafVideoMaterials.length }}</span></h3><div v-if="leafVideoMaterials.length" class="file-list"><LibraryMaterialCard v-for="item in leafVideoMaterials" :key="item.id" :item="item" @open="selected = $event" @changed="reloadMaterials" @notice="notice = $event" @error="error = $event" /></div><p v-else>No hay vídeos asociados.</p></section></div></section>
-        <section v-if="!isSecondLevel || searchQuery || filteredMaterials.length" class="file-section"><div class="section-label">{{ isSecondLevel && !searchQuery ? 'Archivos de esta carpeta' : fileSectionTitle }}</div><div v-if="filteredMaterials.length" class="file-list"><LibraryMaterialCard v-for="item in filteredMaterials" :key="item.id" :item="item" @open="selected = $event" @changed="reloadMaterials" @notice="notice = $event" @error="error = $event" /></div><div v-else class="file-empty">{{ searchQuery ? 'No se han encontrado archivos.' : 'Esta carpeta no contiene archivos directamente.' }}</div></section>
+        <section v-if="!searchQuery && activeFolder.children.length" class="folder-section"><div class="section-label">Carpetas</div><div class="folder-tiles"><article v-for="folder in activeFolder.children" :key="folder.path" class="folder-tile" :style="{ '--folder-color': folder.color || 'var(--brand-green)' }"><button v-if="session.user?.role === 'admin' && folder.id && !(folder.name === 'Sin clasificar' && folder.parentId === null)" class="folder-tile-color" type="button" :aria-label="`Editar color de ${folder.name}`" title="Editar color" @click.stop="editFolderColor(folder)"><span></span></button><button class="folder-tile-open" @click="selectFolder(folder.path)"><span class="tile-folder-icon">⌑</span><span><b>{{ folder.name }}</b><small>{{ folder.materialCount }} {{ folder.materialCount === 1 ? 'archivo' : 'archivos' }}</small></span><span class="tile-arrow">›</span></button></article></div></section>
+        <section class="file-section"><div class="section-label">{{ fileSectionTitle }}</div><div v-if="filteredMaterials.length" class="file-list"><LibraryMaterialCard v-for="item in filteredMaterials" :key="item.id" :item="item" @open="selected = $event" @changed="reloadMaterials" @notice="notice = $event" @error="error = $event" /></div><div v-else class="file-empty">{{ searchQuery ? 'No se han encontrado archivos.' : 'Esta carpeta no contiene archivos directamente.' }}</div></section>
       </main>
     </div>
     <div v-else class="empty"><b>Aún no tienes materiales activos.</b><p>Tu profesora te dará acceso cuando estén preparados.</p></div>
