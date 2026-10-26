@@ -123,3 +123,11 @@
 .folder-admin-list .folder-toggle,.folder-admin-list .folder-toggle-placeholder{box-sizing:border-box;flex:0 0 20px;width:20px;height:20px;padding:0}.folder-admin-list .folder-toggle-placeholder{display:block}
 
 .move-material-button{border:1px solid var(--brand-border);background:var(--mint);color:var(--brand-green)}.move-material-button:hover{background:var(--brand-pale)}.folder-move-card .folder-color-body{gap:14px}.folder-move-current{overflow-wrap:anywhere;line-height:1.5}.folder-move-current strong{color:var(--brand-green)}.folder-move-card .folder-color-body label{font-size:12px;font-weight:700}.folder-move-card .folder-color-body select{margin-top:8px}
+
+.folder-parent-placeholder{grid-column:1;display:block;width:22px;height:30px;padding:0}
+.folder-move-card{max-height:90vh;overflow-y:auto}
+.folder-move-card .folder-parent-options{position:static;margin-top:7px}
+
+/* Indicadores de asignaturas de la portada más visibles. */
+.bc-subjects span{display:inline-flex;align-items:center}
+.bc-subjects span::before{flex:0 0 25px;width:25px;height:25px;margin-right:9px;border-radius:5px}

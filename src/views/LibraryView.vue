@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import MaterialViewer from '../components/MaterialViewer.vue'
 import LibraryFolderTree, { type LibraryFolderNode } from '../components/LibraryFolderTree.vue'
 import LibraryMaterialCard from '../components/LibraryMaterialCard.vue'
+import FolderTreePicker from '../components/FolderTreePicker.vue'
 import { api, errorMessage } from '../services/api'
 import { session } from '../services/session'
 import type { Folder, Material } from '../types'
@@ -23,7 +24,6 @@ const movingMaterial = ref<Material | null>(null)
 const moveTargetId = ref<number | null>(null)
 const savingMove = ref(false)
 const moveError = ref('')
-const moveFolderOptions = computed(() => [...folders.value].sort((a, b) => a.path.localeCompare(b.path, 'es')))
 
 const folderTree = computed<LibraryFolderNode[]>(() => {
   const nodes = new Map<string, LibraryFolderNode>()
@@ -157,7 +157,7 @@ onMounted(async () => { try { await loadMaterials() } catch (e) { error.value = 
     <div v-if="movingMaterial" class="modal folder-color-modal" role="dialog" aria-modal="true" aria-label="Mover material" @click.self="movingMaterial = null">
       <form class="folder-color-card folder-move-card" @submit.prevent="saveMoveMaterial">
         <header><div><p class="eyebrow">UBICACIÓN DEL MATERIAL</p><h2>Mover material</h2><small>{{ movingMaterial.title }}</small></div><button class="icon-button" type="button" aria-label="Cerrar" @click="movingMaterial = null">×</button></header>
-        <div class="folder-color-body"><p class="folder-move-current">Ubicación actual: <strong>{{ movingMaterial.folder?.path || 'Sin clasificar' }}</strong></p><label>Nueva carpeta<select v-model.number="moveTargetId" required><option :value="null" disabled>Selecciona una carpeta</option><option v-for="folder in moveFolderOptions" :key="folder.id" :value="folder.id">{{ folder.path }}</option></select></label><p v-if="moveError" class="alert">{{ moveError }}</p></div>
+        <div class="folder-color-body"><p class="folder-move-current">Ubicación actual: <strong>{{ movingMaterial.folder?.path || 'Sin clasificar' }}</strong></p><label>Nueva carpeta<FolderTreePicker v-model="moveTargetId" :folders="folders" :allow-root="false" /><small>Despliega una carpeta para ver sus subcarpetas.</small></label><p v-if="moveError" class="alert">{{ moveError }}</p></div>
         <footer><button class="secondary" type="button" @click="movingMaterial = null">Cancelar</button><button class="primary" :disabled="savingMove || moveTargetId === null || moveTargetId === movingMaterial.folder?.id">{{ savingMove ? 'Moviendo…' : 'Mover material' }}</button></footer>
       </form>
     </div>
