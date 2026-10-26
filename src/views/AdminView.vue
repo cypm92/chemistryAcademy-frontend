@@ -15,6 +15,8 @@ const upload = ref({ title: '', description: '', tags: '', file: null as File | 
 const folderSelection = ref('')
 const folderForm = ref({ name: '', parent_id: '' })
 const editingFolderId = ref<number | null>(null)
+const parentPickerOpen = ref(false)
+const expandedParentFolderIds = ref<number[]>([])
 const folderSearch = ref('')
 const expandedFolderIds = ref<number[]>([])
 const activeSection = ref<'students' | 'folders'>('students')
@@ -48,15 +50,21 @@ const parentFolderOptions = computed(() => {
     collectDescendants(editingFolderId.value)
   }
 
-  const options: Array<{ folder: Folder; depth: number }> = []
+  const options: Array<{ folder: Folder; depth: number; hasChildren: boolean }> = []
   const visit = (parentId: number | null, depth: number) => {
     for (const folder of childrenByParent.get(parentId) || []) {
-      if (!excludedIds.has(folder.id)) options.push({ folder, depth })
-      visit(folder.id, depth + 1)
+      if (excludedIds.has(folder.id)) continue
+      const hasChildren = (childrenByParent.get(folder.id) || []).some((child) => !excludedIds.has(child.id))
+      options.push({ folder, depth, hasChildren })
+      if (expandedParentFolderIds.value.includes(folder.id)) visit(folder.id, depth + 1)
     }
   }
   visit(null, 0)
   return options
+})
+const parentFolderLabel = computed(() => {
+  if (!folderForm.value.parent_id) return 'Carpeta raíz'
+  return folders.value.find((folder) => String(folder.id) === folderForm.value.parent_id)?.path || 'Selecciona una carpeta'
 })
 const folderRows = computed(() => {
   const search = folderSearch.value.trim().toLocaleLowerCase()
@@ -120,7 +128,16 @@ function saveFolder() {
   return act(() => editing ? api.patch(`/admin/folders/${editing}`, payload) : api.post('/admin/folders', payload), editing ? 'Carpeta actualizada correctamente.' : 'Carpeta creada correctamente.').then(() => cancelEditFolder())
 }
 function editFolder(folder: Folder) { editingFolderId.value = folder.id; folderForm.value = { name: folder.name, parent_id: folder.parent_id ? String(folder.parent_id) : '' } }
-function cancelEditFolder() { editingFolderId.value = null; folderForm.value = { name: '', parent_id: '' } }
+function cancelEditFolder() { editingFolderId.value = null; folderForm.value = { name: '', parent_id: '' }; parentPickerOpen.value = false }
+function toggleParentFolder(folderId: number) {
+  expandedParentFolderIds.value = expandedParentFolderIds.value.includes(folderId)
+    ? expandedParentFolderIds.value.filter((id) => id !== folderId)
+    : [...expandedParentFolderIds.value, folderId]
+}
+function selectParentFolder(folderId: number | null) {
+  folderForm.value.parent_id = folderId === null ? '' : String(folderId)
+  parentPickerOpen.value = false
+}
 function toggleFolder(folderId: number) {
   expandedFolderIds.value = expandedFolderIds.value.includes(folderId)
     ? expandedFolderIds.value.filter((id) => id !== folderId)
@@ -143,7 +160,7 @@ onMounted(() => load().catch((e) => error.value = errorMessage(e)))
       <form v-if="activeSection === 'students'" class="panel" @submit.prevent="grantAccess"><h2>Compartir con un estudiante</h2><p>Comparte un archivo concreto o todos los materiales que lleven una o varias etiquetas.</p><label>Estudiante<select v-model="grant.user_id" required><option v-for="u in guests" :key="u.id" :value="u.id">{{ u.name }} · {{ u.email }}</option></select></label><label>Compartir<select v-model="grant.scope"><option value="material">Un archivo</option><option value="tag">Una o varias etiquetas</option></select></label><label v-if="grant.scope === 'material'">Material<select v-model="grant.material_id" required><option v-for="m in materials" :key="m.id" :value="m.id">{{ m.title }}</option></select></label><fieldset v-else class="tag-selector"><legend>Etiquetas</legend><p v-if="!tags.length">No hay etiquetas todavía.</p><label v-for="tag in tags" :key="tag.id" class="check"><input v-model="grant.tag_ids" type="checkbox" :value="tag.id" /> {{ tag.name }}</label><small>Incluye los archivos actuales y futuros con cualquiera de las etiquetas seleccionadas.</small></fieldset><label>Duración<select v-model="grant.duration"><option value="week">Una semana</option><option value="month">Un mes</option><option value="custom">Fecha concreta</option></select></label><label v-if="grant.duration === 'custom'">Fin<input v-model="grant.expires_at" type="datetime-local" required /></label><label class="check"><input v-model="grant.can_download" type="checkbox" /> Permitir descarga a este usuario</label><button class="primary">Guardar acceso</button></form>
       <section v-if="activeSection === 'folders'" class="panel folders-admin-panel">
         <h2>Crear carpeta</h2><p>Añade una carpeta raíz o una subcarpeta a la biblioteca.</p>
-        <form @submit.prevent="saveFolder"><label>Nombre<input v-model="folderForm.name" required placeholder="Ej. Formulación" /></label><label>Dentro de<select v-model="folderForm.parent_id"><option value="">Carpeta raíz</option><option v-for="option in parentFolderOptions" :key="option.folder.id" :value="String(option.folder.id)">{{ `${'— '.repeat(option.depth)}${option.folder.name}` }}</option></select><small>Las subcarpetas aparecen sangradas bajo su carpeta principal.</small></label><div class="folder-form-actions"><button class="primary">{{ editingFolderId ? 'Guardar cambios' : 'Crear carpeta' }}</button><button v-if="editingFolderId" type="button" class="secondary" @click="cancelEditFolder">Cancelar</button></div></form>
+        <form @submit.prevent="saveFolder"><label>Nombre<input v-model="folderForm.name" required placeholder="Ej. Formulación" /></label><label>Dentro de<div class="folder-parent-picker" @keydown.esc="parentPickerOpen = false"><button class="folder-parent-trigger" type="button" :aria-expanded="parentPickerOpen" aria-haspopup="tree" @click="parentPickerOpen = !parentPickerOpen"><span>{{ parentFolderLabel }}</span><span aria-hidden="true">{{ parentPickerOpen ? '⌃' : '⌄' }}</span></button><div v-if="parentPickerOpen" class="folder-parent-options" role="tree" aria-label="Árbol de carpetas"><button class="folder-parent-option root" :class="{ selected: !folderForm.parent_id }" type="button" role="treeitem" @click="selectParentFolder(null)">Carpeta raíz</button><div v-for="option in parentFolderOptions" :key="option.folder.id" class="folder-parent-row" :style="{ '--folder-depth': option.depth }"><button v-if="option.hasChildren" class="folder-parent-toggle" type="button" :aria-label="`${expandedParentFolderIds.includes(option.folder.id) ? 'Contraer' : 'Desplegar'} ${option.folder.name}`" @click="toggleParentFolder(option.folder.id)">{{ expandedParentFolderIds.includes(option.folder.id) ? '⌄' : '›' }}</button><span v-else class="folder-parent-toggle empty" aria-hidden="true">·</span><button class="folder-parent-option" :class="{ selected: folderForm.parent_id === String(option.folder.id) }" type="button" role="treeitem" :aria-level="option.depth + 1" @click="selectParentFolder(option.folder.id)"><span class="folder-color-dot" :style="{ backgroundColor: option.folder.effective_color || 'var(--brand-green)' }"></span>{{ option.folder.name }}</button></div></div></div><small>Despliega una carpeta para ver sus subcarpetas.</small></label><div class="folder-form-actions"><button class="primary">{{ editingFolderId ? 'Guardar cambios' : 'Crear carpeta' }}</button><button v-if="editingFolderId" type="button" class="secondary" @click="cancelEditFolder">Cancelar</button></div></form>
       </section>
     </div>
     <StudentsView v-if="activeSection === 'students'" embedded :refresh-key="studentsRefreshKey" />
