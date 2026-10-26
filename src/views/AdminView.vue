@@ -129,19 +129,38 @@ function saveFolder() {
 }
 function editFolder(folder: Folder) { editingFolderId.value = folder.id; folderForm.value = { name: folder.name, parent_id: folder.parent_id ? String(folder.parent_id) : '' } }
 function cancelEditFolder() { editingFolderId.value = null; folderForm.value = { name: '', parent_id: '' }; parentPickerOpen.value = false }
+function folderBranchIds(folderId: number): Set<number> {
+  const ids = new Set([folderId])
+  const pending = [folderId]
+  while (pending.length) {
+    const parentId = pending.pop()
+    for (const folder of folders.value) {
+      if (folder.parent_id !== parentId) continue
+      ids.add(folder.id)
+      pending.push(folder.id)
+    }
+  }
+  return ids
+}
 function toggleParentFolder(folderId: number) {
-  expandedParentFolderIds.value = expandedParentFolderIds.value.includes(folderId)
-    ? expandedParentFolderIds.value.filter((id) => id !== folderId)
-    : [...expandedParentFolderIds.value, folderId]
+  if (!expandedParentFolderIds.value.includes(folderId)) {
+    expandedParentFolderIds.value = [...expandedParentFolderIds.value, folderId]
+    return
+  }
+  const branchIds = folderBranchIds(folderId)
+  expandedParentFolderIds.value = expandedParentFolderIds.value.filter((id) => !branchIds.has(id))
 }
 function selectParentFolder(folderId: number | null) {
   folderForm.value.parent_id = folderId === null ? '' : String(folderId)
   parentPickerOpen.value = false
 }
 function toggleFolder(folderId: number) {
-  expandedFolderIds.value = expandedFolderIds.value.includes(folderId)
-    ? expandedFolderIds.value.filter((id) => id !== folderId)
-    : [...expandedFolderIds.value, folderId]
+  if (!expandedFolderIds.value.includes(folderId)) {
+    expandedFolderIds.value = [...expandedFolderIds.value, folderId]
+    return
+  }
+  const branchIds = folderBranchIds(folderId)
+  expandedFolderIds.value = expandedFolderIds.value.filter((id) => !branchIds.has(id))
 }
 function removeFolder(folder: Folder) {
   if (!window.confirm(`¿Eliminar la carpeta “${folder.path}”? Sus subcarpetas también se eliminarán. Los archivos quedarán sin carpeta.`)) return
@@ -174,7 +193,7 @@ onMounted(() => load().catch((e) => error.value = errorMessage(e)))
       <label class="folder-search"><span>⌕</span><input v-model="folderSearch" placeholder="Buscar carpeta..." /></label>
       <div class="folder-admin-list">
         <article v-for="row in folderRows" :key="row.folder.id" :style="{ '--folder-level': row.depth }">
-          <button v-if="row.hasChildren" class="folder-toggle" type="button" @click="toggleFolder(row.folder.id)">{{ expandedFolderIds.includes(row.folder.id) ? '⌄' : '›' }}</button><span v-else class="folder-toggle empty">·</span>
+          <button v-if="row.hasChildren" class="folder-toggle" type="button" @click="toggleFolder(row.folder.id)">{{ expandedFolderIds.includes(row.folder.id) ? '⌄' : '›' }}</button><span v-else class="folder-toggle-placeholder" aria-hidden="true"></span>
           <span class="folder-color-dot" :style="{ backgroundColor: row.folder.effective_color || 'var(--brand-green)' }"></span><span class="folder-row-name"><b>{{ row.folder.name }}</b><small v-if="folderSearch">{{ row.folder.path }}</small></span>
           <div v-if="!(row.folder.name === 'Sin clasificar' && row.folder.parent_id === null)" class="folder-row-actions"><button class="edit-button" @click="editFolder(row.folder)">Editar</button><button class="remove-button" title="Eliminar carpeta" @click="removeFolder(row.folder)">×</button></div>
         </article>
