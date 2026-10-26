@@ -7,7 +7,7 @@ import ReservationsView from './views/ReservationsView.vue'
 import ClassesView from './views/ClassesView.vue'
 import HomeView from './views/HomeView.vue'
 import LegalView from './views/LegalView.vue'
-import { session } from './services/session'
+import { hasActiveSession, session } from './services/session'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -28,10 +28,10 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  if (to.path === '/' && localStorage.getItem('academy_token')) return session.user?.role === 'admin' ? '/admin' : '/library'
-  if (!to.meta.public && !localStorage.getItem('academy_token')) return '/login'
+  if (to.path === '/' && hasActiveSession()) return session.user?.role === 'admin' ? '/admin' : '/library'
+  if (!to.meta.public && !hasActiveSession()) return '/login'
   if (to.meta.admin && session.user?.role !== 'admin') return '/library'
-  if (to.path === '/login' && localStorage.getItem('academy_token')) return session.user?.role === 'admin' ? '/admin' : '/library'
+  if (to.path === '/login' && hasActiveSession()) return session.user?.role === 'admin' ? '/admin' : '/library'
 })
 
 export default router

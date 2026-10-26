@@ -49,6 +49,7 @@ async function submit() {
       <p class="eyebrow">{{ mode === 'login' ? 'BIENVENIDA DE NUEVO' : 'NUEVA CUENTA' }}</p>
       <h2>{{ mode === 'login' ? 'Continúa aprendiendo' : 'Únete a la academia' }}</h2>
       <p>{{ mode === 'login' ? 'Accede a tus clases y materiales.' : 'La administradora activará tus materiales.' }}</p>
+      <p v-if="route.query.reason === 'session-expired'" class="auth-session-notice">Tu sesión ha caducado. Inicia sesión de nuevo para continuar.</p>
       <label v-if="mode === 'register'">Nombre<input v-model="form.name" required minlength="2" /></label>
       <label>Email<input v-model="form.email" type="email" required placeholder="tu@email.com" /></label>
       <label>Contraseña<input v-model="form.password" type="password" required minlength="8" /></label>
