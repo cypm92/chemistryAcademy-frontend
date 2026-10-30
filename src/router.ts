@@ -7,12 +7,18 @@ import ReservationsView from './views/ReservationsView.vue'
 import ClassesView from './views/ClassesView.vue'
 import HomeView from './views/HomeView.vue'
 import LegalView from './views/LegalView.vue'
+import ResourcesView from './views/ResourcesView.vue'
 import { hasActiveSession, session } from './services/session'
 
 const router = createRouter({
   history: createWebHistory(),
+  scrollBehavior(to) {
+    if (to.hash) return { el: to.hash, behavior: 'smooth' }
+    return { top: 0 }
+  },
   routes: [
     { path: '/', component: HomeView, meta: { public: true } },
+    { path: '/recursos', component: ResourcesView, meta: { public: true } },
     { path: '/login', component: LoginView, meta: { public: true } },
     { path: '/aviso-legal', component: LegalView, meta: { public: true } },
     { path: '/privacidad', component: LegalView, meta: { public: true } },

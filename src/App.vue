@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { protectedBlobUrl } from './services/api'
 import { logout, session } from './services/session'
 import becienciaLogo from './assets/beciencia-circular.svg'
@@ -9,6 +9,7 @@ import BrandSettings from './components/BrandSettings.vue'
 import { branding, loadBranding } from './services/theme'
 
 const router = useRouter()
+const route = useRoute()
 const menuOpen = ref(false)
 const avatarUrl = ref('')
 const logoOpen = ref(false)
@@ -38,12 +39,13 @@ function leave() {
 
 <template>
   <div class="app-shell">
-    <header v-if="session.user" class="topbar">
+    <header v-if="session.user && route.path !== '/recursos'" class="topbar">
       <button class="brand" type="button" :aria-label="session.user.role === 'admin' ? 'Editar identidad visual' : 'Ampliar logo de BeCiencia Academia'" @click="handleBrandClick">
         <img class="brand-logo" :src="branding.logoUrl || becienciaLogo" alt="" />
       </button>
       <nav>
         <RouterLink to="/library">Mi biblioteca</RouterLink>
+        <RouterLink to="/recursos">Recursos</RouterLink>
         <RouterLink to="/reservations">Mis reservas</RouterLink>
         <RouterLink to="/classes">Mis clases</RouterLink>
         <RouterLink v-if="session.user.role === 'admin'" to="/admin">Administración</RouterLink>
