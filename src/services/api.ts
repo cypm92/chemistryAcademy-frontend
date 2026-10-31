@@ -34,6 +34,12 @@ export function errorMessage(error: unknown): string {
   return 'Ha ocurrido un error inesperado'
 }
 
+export function apiUrl(path: string): string {
+  if (/^https?:\/\//i.test(path)) return path
+  const base = (api.defaults.baseURL || '').replace(/\/$/, '')
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`
+}
+
 export async function protectedBlobUrl(path: string): Promise<string> {
   const response = await api.get(path, { responseType: 'blob' })
   return URL.createObjectURL(response.data)

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
-import { api, errorMessage } from '../services/api'
+import { api, apiUrl, errorMessage } from '../services/api'
 import type { Folder, Material, Tag, User } from '../types'
 import FolderTreePicker from '../components/FolderTreePicker.vue'
 import StudentsView from './StudentsView.vue'
@@ -19,7 +19,18 @@ const editingFolderId = ref<number | null>(null)
 const folderNameInput = ref<HTMLInputElement | null>(null)
 const folderSearch = ref('')
 const expandedFolderIds = ref<number[]>([])
-const activeSection = ref<'students' | 'folders'>('students')
+const activeSection = ref<'students' | 'folders' | 'resources' | 'settings'>('students')
+const notificationSettings = ref({ reminder_interval_minutes: 1440 })
+type PublicResource = { id: number; title: string; description: string; subject: string; file_url?: string; url?: string; community?: string; exam_year?: number; exam_part?: 'statement' | 'solutions' }
+const publicResources = ref<{ exams: PublicResource[]; forms: PublicResource[]; videos: PublicResource[]; documents: PublicResource[] }>({ exams: [], forms: [], videos: [], documents: [] })
+const publicExam = ref({ title: '', description: '', subject: 'quimica', community: 'Madrid', exam_year: new Date().getFullYear(), exam_part: 'statement' as 'statement' | 'solutions', file: null as File | null })
+const publicDocument = ref({ title: '', description: '', subject: 'quimica', file: null as File | null })
+const publicVideo = ref({ title: '', description: '', subject: 'quimica', url: '' })
+const publicSubjects = [{ value: 'quimica', label: 'Química' }, { value: 'organica', label: 'Química orgánica' }, { value: 'fisica', label: 'Física' }, { value: 'matematicas', label: 'Matemáticas' }]
+const publicCommunities = ['Andalucía', 'Aragón', 'Asturias', 'Baleares', 'Canarias', 'Cantabria', 'Castilla-La Mancha', 'Castilla y León', 'Cataluña', 'C. Valenciana', 'Extremadura', 'Galicia', 'La Rioja', 'Madrid', 'Murcia', 'Navarra', 'País Vasco']
+const resourcesLoading = ref(false)
+const resourceBusy = ref(false)
+const reminderPreset = ref('1440')
 const studentsRefreshKey = ref(0)
 const contactRequests = ref<Array<{ id: number; name: string; contact: string; need: string; message: string; created_at: string }>>([])
 const grant = ref({ user_id: 0, material_id: 0, tag_ids: [] as number[], scope: 'material', duration: 'week', expires_at: '', can_download: false })
@@ -40,6 +51,24 @@ const folderRows = computed(() => {
   }).map((folder) => ({ folder, hasChildren: hasChildren.has(folder.id), depth: folder.path.split(' / ').length - 1 }))
 })
 
+async function loadNotificationSettings() {
+  const { data } = await api.get('/admin/notification-settings')
+  notificationSettings.value = { reminder_interval_minutes: data.reminder_interval_minutes }
+  reminderPreset.value = [1440, 360, 120, 30].includes(data.reminder_interval_minutes) ? String(data.reminder_interval_minutes) : 'custom'
+}
+
+async function saveNotificationSettings() {
+  error.value = ''; notice.value = ''
+  const minutes = reminderPreset.value === 'custom' ? notificationSettings.value.reminder_interval_minutes : Number(reminderPreset.value)
+  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 525600) { error.value = 'El intervalo debe ser un número entero entre 1 y 525600 minutos.'; return }
+
+  try {
+    const { data } = await api.patch('/admin/notification-settings', { reminder_interval_minutes: minutes })
+    notificationSettings.value = { reminder_interval_minutes: data.reminder_interval_minutes }
+    reminderPreset.value = [1440, 360, 120, 30].includes(data.reminder_interval_minutes) ? String(data.reminder_interval_minutes) : 'custom'
+    notice.value = 'Configuración de notificaciones guardada.'
+  } catch (e) { error.value = errorMessage(e) }
+}
 async function load() {
   const [u, m, f, t, contacts] = await Promise.all([api.get('/admin/users'), api.get('/admin/materials'), api.get('/admin/folders'), api.get('/admin/tags'), api.get('/admin/contact-requests')])
   users.value = u.data; materials.value = m.data; folders.value = f.data; tags.value = t.data
@@ -50,6 +79,57 @@ async function load() {
   if (!guests.value.some((user) => user.id === grant.value.user_id)) grant.value.user_id = guests.value[0]?.id || 0
   if (!grant.value.material_id && materials.value[0]) grant.value.material_id = materials.value[0].id
   if (!grant.value.tag_ids.length && tags.value[0]) grant.value.tag_ids = [tags.value[0].id]
+}
+async function loadPublicResources() {
+  resourcesLoading.value = true
+  try {
+    const { data } = await api.get('/admin/public-resources')
+    publicResources.value = data
+  } finally { resourcesLoading.value = false }
+}
+async function uploadPublicExam() {
+  error.value = ''; notice.value = ''
+  const { title, description, subject, community, exam_year, exam_part, file } = publicExam.value
+  if (!file || !file.name.toLowerCase().endsWith('.pdf')) { error.value = 'Selecciona un archivo PDF.'; return }
+  const body = new FormData()
+  body.append('title', title); body.append('description', description); body.append('subject', subject); body.append('community', community); body.append('exam_year', String(exam_year)); body.append('exam_part', exam_part); body.append('file', file)
+  resourceBusy.value = true
+  try { await api.post('/admin/public-resources/exams', body); publicExam.value = { title: '', description: '', subject: 'quimica', community: 'Madrid', exam_year: new Date().getFullYear(), exam_part: 'statement', file: null }; await loadPublicResources(); notice.value = 'Examen añadido a Recursos.' }
+  catch (e) { error.value = errorMessage(e) } finally { resourceBusy.value = false }
+}
+async function uploadPublicDocument() {
+  error.value = ''; notice.value = ''
+  const { title, description, subject, file } = publicDocument.value
+  if (!file) { error.value = 'Selecciona un archivo PDF.'; return }
+  if (file.size > 20 * 1024 * 1024) { error.value = 'El PDF no puede superar 20 MB.'; return }
+  if (!file.name.toLowerCase().endsWith('.pdf')) { error.value = 'El archivo debe tener formato PDF.'; return }
+  const body = new FormData()
+  body.append('title', title); body.append('description', description); body.append('subject', subject); body.append('file', file)
+  resourceBusy.value = true
+  try {
+    await api.post('/admin/public-resources/forms', body)
+    publicDocument.value = { title: '', description: '', subject: 'quimica', file: null }
+    await loadPublicResources()
+    notice.value = 'PDF añadido a Recursos.'
+  } catch (e) { error.value = errorMessage(e) } finally { resourceBusy.value = false }
+}
+async function addInstagramVideo() {
+  error.value = ''; notice.value = ''; resourceBusy.value = true
+  try {
+    await api.post('/admin/public-resources/videos', publicVideo.value)
+    publicVideo.value = { title: '', description: '', subject: 'quimica', url: '' }
+    await loadPublicResources()
+    notice.value = 'Enlace de Instagram añadido a Recursos.'
+  } catch (e) { error.value = errorMessage(e) } finally { resourceBusy.value = false }
+}
+async function removePublicResource(item: PublicResource) {
+  if (!window.confirm(`¿Eliminar «${item.title}» de Recursos?`)) return
+  error.value = ''; notice.value = ''; resourceBusy.value = true
+  try {
+    await api.delete(`/admin/public-resources/${item.id}`)
+    await loadPublicResources()
+    notice.value = 'Recurso eliminado.'
+  } catch (e) { error.value = errorMessage(e) } finally { resourceBusy.value = false }
 }
 async function act(task: () => Promise<unknown>, message: string) {
   error.value = ''; notice.value = ''
@@ -127,13 +207,13 @@ function removeFolder(folder: Folder) {
   if (!window.confirm(`¿Eliminar la carpeta “${folder.path}”? Sus subcarpetas también se eliminarán. Los archivos quedarán sin carpeta.`)) return
   return act(() => api.delete(`/admin/folders/${folder.id}`), 'Carpeta eliminada correctamente.')
 }
-onMounted(() => load().catch((e) => error.value = errorMessage(e)))
+onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResources()]).catch((e) => error.value = errorMessage(e)))
 </script>
 
 <template>
-  <section :class="['page', 'admin-page', { 'admin-page-students': activeSection === 'students', 'admin-page-folders': activeSection === 'folders' }]">
+  <section :class="['page', 'admin-page', { 'admin-page-students': activeSection === 'students', 'admin-page-folders': activeSection === 'folders', 'admin-page-settings': activeSection === 'settings', 'admin-page-resources': activeSection === 'resources' }]">
     <p v-if="notice" class="success-alert">{{ notice }}</p><p v-if="error" class="alert">{{ error }}</p>
-    <div class="admin-tabs" role="tablist" aria-label="Secciones de administración"><button :class="{ active: activeSection === 'students' }" type="button" role="tab" :aria-selected="activeSection === 'students'" @click="activeSection = 'students'">Gestión de alumnos</button><button :class="{ active: activeSection === 'folders' }" type="button" role="tab" :aria-selected="activeSection === 'folders'" @click="activeSection = 'folders'">Gestión de carpetas</button></div>
+    <div class="admin-tabs" role="tablist" aria-label="Secciones de administración"><button :class="{ active: activeSection === 'students' }" type="button" role="tab" :aria-selected="activeSection === 'students'" @click="activeSection = 'students'">Gestión de alumnos</button><button :class="{ active: activeSection === 'folders' }" type="button" role="tab" :aria-selected="activeSection === 'folders'" @click="activeSection = 'folders'">Gestión de carpetas</button><button :class="{ active: activeSection === 'resources' }" type="button" role="tab" :aria-selected="activeSection === 'resources'" @click="activeSection = 'resources'">Recursos públicos</button><button :class="{ active: activeSection === 'settings' }" type="button" role="tab" :aria-selected="activeSection === 'settings'" @click="activeSection = 'settings'">Notificaciones</button></div>
     <div class="admin-tab-grid">
       <form v-if="activeSection === 'students'" class="panel" @submit.prevent="createUser"><h2>Crear estudiante</h2><p>También pueden registrarse por sí mismos como invitados.</p><label>Nombre<input v-model="newUser.name" required minlength="2" /></label><label>Email<input v-model="newUser.email" type="email" required /></label><label>Contraseña temporal<input v-model="newUser.password" type="password" required minlength="8" /></label><button class="primary">Crear usuario</button></form>
       <form v-if="activeSection === 'folders'" class="panel" @submit.prevent="uploadFile"><h2>Subir material</h2><p>PDF, MP4, WebM o MOV. Elige una carpeta creada previamente.</p><label>Título<input v-model="upload.title" required /></label><label>Carpeta<select v-model="folderSelection" required><option value="" disabled>Selecciona una carpeta</option><option v-for="folder in folders" :key="folder.id" :value="String(folder.id)">{{ folder.path }}</option></select></label><label>Etiquetas<input v-model="upload.tags" placeholder="Ej. ESO, FORMULACIÓN, EXAMEN" @input="upload.tags = upload.tags.toUpperCase()" /><small>Sepáralas con comas. Se guardan siempre en mayúsculas.</small></label><label>Descripción<textarea v-model="upload.description" rows="3" /></label><label class="file-input">Archivo<input type="file" accept=".pdf,video/*" required @change="upload.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label><button class="primary">Subir material</button></form>
@@ -153,6 +233,65 @@ onMounted(() => load().catch((e) => error.value = errorMessage(e)))
         </form>
       </section>
     </div>
+    <div v-if="activeSection === 'resources'" class="resource-admin-grid">
+      <form class="panel" @submit.prevent="uploadPublicExam">
+        <h2>Subir examen PAU</h2><p>El examen aparecerá en la pestaña Recursos, visible antes de iniciar sesión. Máximo 20 MB.</p>
+        <label>Título<input v-model="publicExam.title" required maxlength="180" /></label>
+        <label>Asignatura<select v-model="publicExam.subject"><option v-for="subject in publicSubjects" :key="subject.value" :value="subject.value">{{ subject.label }}</option></select></label>
+        <label>Comunidad<select v-model="publicExam.community" required><option v-for="community in publicCommunities" :key="community" :value="community">{{ community }}</option></select></label><label>Año<input v-model.number="publicExam.exam_year" type="number" min="2000" max="2100" required /></label><label>Tipo<select v-model="publicExam.exam_part"><option value="statement">Enunciado</option><option value="solutions">Soluciones</option></select></label><label>Descripción<textarea v-model="publicExam.description" rows="3" maxlength="5000" /></label>
+        <label>Archivo PDF<input type="file" accept="application/pdf,.pdf" required @change="publicExam.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label>
+        <button class="primary" :disabled="resourceBusy">{{ resourceBusy ? 'Guardando…' : 'Subir PDF' }}</button>
+      </form>
+      <form class="panel" @submit.prevent="uploadPublicDocument">
+        <h2>Subir formulario PDF</h2><p>Documento público por asignatura.</p>
+        <label>Título<input v-model="publicDocument.title" required maxlength="180" /></label>
+        <label>Asignatura<select v-model="publicDocument.subject"><option v-for="subject in publicSubjects" :key="subject.value" :value="subject.value">{{ subject.label }}</option></select></label>
+        <label>Descripción<textarea v-model="publicDocument.description" rows="3" maxlength="5000" /></label>
+        <label>Archivo PDF<input type="file" accept="application/pdf,.pdf" required @change="publicDocument.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label>
+        <button class="primary" :disabled="resourceBusy">Subir formulario</button>
+      </form>
+      <form class="panel" @submit.prevent="addInstagramVideo">
+        <h2>Añadir publicación de Instagram</h2><p>No se suben vídeos: pega el enlace permanente de una publicación o reel público.</p>
+        <label>Título<input v-model="publicVideo.title" required maxlength="180" /></label>
+        <label>Asignatura<select v-model="publicVideo.subject"><option v-for="subject in publicSubjects" :key="subject.value" :value="subject.value">{{ subject.label }}</option></select></label>
+        <label>Enlace de Instagram<input v-model="publicVideo.url" type="url" required placeholder="https://www.instagram.com/reel/..." /></label>
+        <label>Descripción<textarea v-model="publicVideo.description" rows="3" maxlength="5000" /></label>
+        <button class="primary" :disabled="resourceBusy">{{ resourceBusy ? 'Guardando…' : 'Añadir enlace' }}</button>
+      </form>
+      <section class="panel public-resource-list">
+        <h2>Recursos publicados</h2><p>Estos elementos se muestran en la página pública de Recursos.</p>
+        <p v-if="resourcesLoading" role="status">Cargando recursos…</p>
+        <template v-else>
+          <h3>Exámenes PAU · {{ publicResources.exams.length }}</h3>
+          <article v-for="item in publicResources.exams" :key="`exam-${item.id}`" class="public-resource-row">
+            <div><b>{{ item.title }}</b><small>{{ item.community }} · {{ item.subject }} · {{ item.exam_year }} · {{ item.exam_part === 'statement' ? 'Enunciado' : 'Soluciones' }}</small><p>{{ item.description || 'Sin descripción.' }}</p></div>
+            <a v-if="item.file_url" :href="apiUrl(item.file_url)" target="_blank" rel="noopener noreferrer">Ver PDF ↗</a>
+            <button type="button" class="remove-button" :disabled="resourceBusy" :aria-label="`Eliminar ${item.title}`" @click="removePublicResource(item)">×</button>
+          </article>
+          <p v-if="!publicResources.exams.length" class="resource-empty">Aún no hay exámenes.</p>
+          <h3>Formularios PDF · {{ publicResources.forms.length }}</h3>
+          <article v-for="item in publicResources.forms" :key="`doc-${item.id}`" class="public-resource-row">
+            <div><b>{{ item.title }}</b><small>{{ publicSubjects.find(s => s.value === item.subject)?.label || item.subject }}</small><p>{{ item.description || 'Sin descripción.' }}</p></div>
+            <a v-if="item.file_url" :href="apiUrl(item.file_url)" target="_blank" rel="noopener noreferrer">Ver PDF ↗</a>
+            <button type="button" class="remove-button" :disabled="resourceBusy" :aria-label="`Eliminar ${item.title}`" @click="removePublicResource(item)">×</button>
+          </article>
+          <p v-if="!publicResources.forms.length" class="resource-empty">Aún no hay documentos.</p>
+          <h3>Instagram · {{ publicResources.videos.length }}</h3>
+          <article v-for="item in publicResources.videos" :key="`video-${item.id}`" class="public-resource-row">
+            <div><b>{{ item.title }}</b><small>{{ publicSubjects.find(s => s.value === item.subject)?.label || item.subject }}</small><p>{{ item.description || 'Sin descripción.' }}</p></div>
+            <a v-if="item.url" :href="item.url" target="_blank" rel="noopener noreferrer">Abrir ↗</a>
+            <button type="button" class="remove-button" :disabled="resourceBusy" :aria-label="`Eliminar ${item.title}`" @click="removePublicResource(item)">×</button>
+          </article>
+          <p v-if="!publicResources.videos.length" class="resource-empty">Aún no hay enlaces de Instagram.</p>
+        </template>
+      </section>
+    </div>
+    <form v-if="activeSection === 'settings'" class="panel notification-settings-panel" @submit.prevent="saveNotificationSettings">
+      <h2>Recordatorios de reservas</h2><p>Los recordatorios se envían automáticamente al correo de cada estudiante con una clase confirmada.</p>
+
+      <label>Antelación del recordatorio<select v-model="reminderPreset" @change="reminderPreset !== 'custom' && (notificationSettings.reminder_interval_minutes = Number(reminderPreset))"><option value="1440">24 horas</option><option value="360">6 horas</option><option value="120">2 horas</option><option value="30">30 minutos</option><option value="custom">Personalizado</option></select></label><label v-if="reminderPreset === 'custom'">Intervalo personalizado (minutos)<input v-model.number="notificationSettings.reminder_interval_minutes" type="number" min="1" max="525600" step="1" required /><small>Entre 1 minuto y 365 días (525600 minutos).</small></label>
+      <button class="primary">Guardar configuración</button>
+    </form>
     <StudentsView v-if="activeSection === 'students'" embedded :refresh-key="studentsRefreshKey" />
     <section v-if="activeSection === 'students'" class="contact-requests-panel">
       <div class="contact-requests-head"><div><h2>Solicitudes desde la portada</h2><p>Mensajes enviados por personas que todavía no tienen cuenta.</p></div><span>{{ contactRequests.length }} {{ contactRequests.length === 1 ? 'solicitud' : 'solicitudes' }}</span></div>

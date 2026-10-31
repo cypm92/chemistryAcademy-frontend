@@ -71,6 +71,7 @@
 .admin-tabs { display:flex;gap:8px;margin:0 auto 16px;max-width:760px;padding:5px;border:1px solid var(--line);border-radius:14px;background:var(--paper) }.admin-tabs button { flex:1;border:0;border-radius:10px;background:transparent;padding:11px 15px;color:var(--muted);font-size:13px;font-weight:700 }.admin-tabs button.active { background:var(--brand-green);color:#fff;box-shadow:0 3px 10px #10251d20 }.admin-tab-grid { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:stretch }.admin-tab-grid>.panel { min-width:0 }.admin-tab-grid .panel h2 { font-size:24px }
 @media (min-width:901px) { .admin-page { height:calc(100dvh - 82px) }.admin-tabs { height:48px;margin-bottom:14px }.admin-tab-grid { height:calc(100% - 62px);grid-template-rows:minmax(0,1fr) }.admin-tab-grid>.panel { min-height:0;height:100%;overflow:auto;scrollbar-gutter:stable }.admin-tab-grid .folders-admin-panel { min-height:0 }.admin-tab-grid .folders-admin-panel .folder-admin-list { max-height:calc(100% - 185px)!important } }
 @media (max-width:900px) { .admin-tab-grid { grid-template-columns:1fr } }
+@media (min-width:901px) { .admin-page.admin-page-settings { height:auto;min-height:calc(100dvh - 82px);overflow:visible }.admin-page-settings .admin-tab-grid { display:none }.notification-settings-panel { max-width:760px;margin:0 auto } }
 .folder-admin-list { grid-auto-rows:38px;align-content:start }.folder-admin-list article { height:38px;min-height:38px;overflow:hidden }
 .students-embedded { margin-top:24px }.students-embedded .students-panel { box-shadow:0 12px 34px #10251d0a }
 .student-edit-form { grid-template-columns:repeat(4,minmax(0,1fr));align-items:end }
@@ -137,4 +138,21 @@
 /* El árbol de Mi biblioteca admite subcarpetas a cualquier profundidad. */
 .file-sidebar .folder-nav-item>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .file-sidebar .folder-nav-item small,.file-sidebar .folder-nav-toggle{flex-shrink:0}
+
+/* Administración de recursos públicos */
+@media (min-width:901px){.admin-page.admin-page-resources{height:auto;min-height:calc(100dvh - 82px);overflow:visible}.admin-page-resources .admin-tab-grid{display:none}.admin-page-resources .resource-admin-grid{height:auto;max-height:calc(100dvh - 170px);overflow:auto}}
+.resource-admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.resource-admin-grid>.panel{min-width:0}
+.resource-admin-grid .public-resource-list{grid-column:1/-1}
+.public-resource-list h3{margin:20px 0 8px;color:var(--brand-green);font-size:14px}
+.public-resource-row{display:flex;align-items:center;gap:14px;padding:12px 4px;border-top:1px solid var(--line)}
+.public-resource-row>div{min-width:0;flex:1}
+.public-resource-row b,.public-resource-row small{display:block;overflow-wrap:anywhere}
+.public-resource-row small{margin-top:4px;color:var(--muted);font-size:11px}
+.public-resource-row p{margin:5px 0 0;color:var(--muted);font-size:12px}
+.public-resource-row a{flex:0 0 auto;color:var(--brand-green);font-size:12px;font-weight:700;text-decoration:none}
+.public-resource-row .remove-button{flex:0 0 25px}
+.resource-empty{margin:0;padding:12px 4px;color:var(--muted);font-size:12px}
+.resource-admin-grid button:disabled{cursor:wait;opacity:.65}
+@media(max-width:700px){.resource-admin-grid{grid-template-columns:1fr}.resource-admin-grid .public-resource-list{grid-column:auto}.public-resource-row{align-items:flex-start;gap:8px;flex-wrap:wrap}.public-resource-row>div{flex-basis:calc(100% - 40px)}.public-resource-row a{margin-left:0}}
 @media(max-width:900px){.file-sidebar .folder-nav-list{display:block}.file-sidebar .folder-nav-list .folder-nav-list{display:block;padding-left:11px}.file-sidebar .folder-nav-item{width:100%}}
