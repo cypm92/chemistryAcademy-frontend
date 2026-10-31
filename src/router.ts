@@ -34,6 +34,7 @@ const router = createRouter({
 })
 
 router.beforeEach((to) => {
+  if (to.path === '/recursos' && hasActiveSession()) return session.user?.role === 'admin' ? '/admin' : '/library'
   if (to.path === '/' && hasActiveSession()) return session.user?.role === 'admin' ? '/admin' : '/library'
   if (!to.meta.public && !hasActiveSession()) return '/login'
   if (to.meta.admin && session.user?.role !== 'admin') return '/library'
