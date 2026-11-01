@@ -417,6 +417,7 @@ onMounted(load);
                   minute: "2-digit",
                 })
               }}</small>
+              <small>Hora de Madrid</small>
             </div>
             <div class="class-main">
               <div class="class-main-title">
