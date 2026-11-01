@@ -27,6 +27,10 @@ test('guest calendar classes expose the same management fields and controls', ()
   assert.match(form, /<button type="button" class="danger" @click="cancelCalendarClass">/);
   assert.match(form, /<button class="primary">Guardar cambios<\/button>/);
 });
+test('class cards identify Madrid time beside the hour', () => {
+  const view = read('../src/views/ClassesView.vue');
+  assert.match(view, /class="class-date"[\s\S]*?toLocaleTimeString[\s\S]*?timeZone: MADRID[\s\S]*?Hora de Madrid[\s\S]*?class="class-main"/);
+});
 test('public booking hours carry a prominent Madrid time notice', () => {
   const view = read('../src/components/TrialBookingModal.vue');
   assert.match(view, /HORAS DISPONIBLES[\s\S]*?class="madrid-time-notice"[\s\S]*?Madrid/);

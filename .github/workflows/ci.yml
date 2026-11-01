@@ -34,8 +34,8 @@ jobs:
           for zone in Atlantic/Canary Europe/Madrid America/Los_Angeles Asia/Tokyo; do
             TZ="$zone" node --experimental-strip-types --test tests/madridTime.test.ts tests/guest-bookings.test.mjs tests/calendar-rules.test.ts
           done
-      - name: Comprobar disponibilidad y reintentos
-        run: corepack pnpm@10.17.0 exec vitest run tests/availability.test.ts
+      - name: Comprobar componentes de disponibilidad y notificaciones
+        run: corepack pnpm@10.17.0 exec vitest run tests/availability.test.ts tests/admin-notifications.test.ts tests/cutoff.test.ts
       - name: Comprobar tipos
         run: corepack pnpm@10.17.0 type-check
       - name: Generar aplicación de producción

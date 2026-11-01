@@ -10,7 +10,7 @@ const emit = defineEmits<{ close: [] }>()
 const events = ref<PublicBooking[]>([]); const selectedDate = ref(madridCalendarDate()); const start = ref(''); const name = ref(''); const email = ref(''); const subject = ref(''); const error = ref(''); const message = ref(''); const saving = ref(false)
 const availability = ref<'loading' | 'ready' | 'error'>('loading'); const availabilityError = ref(''); let loadVersion = 0
 const subjects = ['Química Bachiller', 'Química Universidad', 'Física Bachiller', 'Matemáticas Bachiller']
-const slots = Array.from({ length: 24 }, (_, index) => `${String(9 + Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`)
+const slots = Array.from({ length: 23 }, (_, index) => `${String(9 + Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`)
 const days = computed(() => Array.from({ length: 7 }, (_, index) => { const date = madridCalendarDate(); date.setDate(date.getDate() + index); return date }))
 function key(date: Date) { return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` }
 function label(date: Date) { return date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) }

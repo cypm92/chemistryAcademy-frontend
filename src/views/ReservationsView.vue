@@ -4,7 +4,7 @@ import type { Booking, User } from "../types";
 import { api, errorMessage } from "../services/api";
 import { validAvailability } from "../services/availability";
 import { session } from "../services/session";
-import { MADRID, madridInput, madridToUtc, madridCalendarDate, shiftCalendarPeriod, mondayStart, isWeekend, canCancelBooking } from "../services/madridTime";
+import { classEndsByMadridCutoff, MADRID, madridInput, madridToUtc, madridCalendarDate, shiftCalendarPeriod, mondayStart, isWeekend, canCancelBooking } from "../services/madridTime";
 
 type CalendarView = "week" | "month" | "year";
 const view = ref<CalendarView>("week");
@@ -400,6 +400,7 @@ async function saveCalendarClass() {
   if (!event || !calendarItemIsClass.value) return;
   try {
     const starts = new Date(madridToUtc(`${calendarEdit.date}T${calendarEdit.time}`));
+    if (!classEndsByMadridCutoff(starts, Number(calendarEdit.duration_slots))) { error.value = "La clase debe terminar como máximo a las 21:00 (hora de Madrid)."; return; }
     const { data } = await api.patch(`/admin/classes/${event.id}`, {
       starts_at: starts.toISOString(),
       duration_slots: Number(calendarEdit.duration_slots),
@@ -455,9 +456,12 @@ async function saveCalendarBlock() {
 }
 async function createAdminClass() {
   try {
+    const starts = madridToUtc(adminClass.starts_at);
+    if (!classEndsByMadridCutoff(new Date(starts), Number(adminClass.duration_slots))) { error.value = "La clase debe terminar como máximo a las 21:00 (hora de Madrid)."; return; }
+    error.value = "";
     await api.post("/admin/classes", {
       ...adminClass,
-      starts_at: madridToUtc(adminClass.starts_at),
+      starts_at: starts,
     });
     message.value = "Clase creada y confirmada.";
     adminClass.starts_at = "";
@@ -473,23 +477,7 @@ onMounted(() => { void load(); void loadStudents(); });
 
 <template>
   <section class="page reservations-page">
-    <div class="reservation-heading">
-      <div>
-        <p class="eyebrow">CLASES PARTICULARES</p>
-        <h1>Mis reservas</h1>
-        <p>Elige una franja de 30 minutos para solicitar una clase.</p>
-      </div>
-      <div class="calendar-view-toggle">
-        <button
-          v-for="item in ['week', 'month', 'year']"
-          :key="item"
-          :class="{ active: view === item }"
-          @click="setView(item)"
-        >
-          {{ item === "week" ? "Semana" : item === "month" ? "Mes" : "Año" }}
-        </button>
-      </div>
-    </div>
+
     <p v-if="isAdmin && availabilityError" class="alert" role="alert">No se pudo cargar el calendario. {{ availabilityError }} <button type="button" data-testid="retry-availability" @click="load">Reintentar</button></p>
     <p v-if="error" class="alert">{{ error }}</p>
     <p v-if="message" class="success-alert">{{ message }}</p>
@@ -499,7 +487,20 @@ onMounted(() => { void load(); void loadStudents(); });
         <header class="calendar-head">
           <button class="calendar-nav" @click="changePeriod(-1)">‹</button>
           <h2>{{ title }}</h2>
-          <button class="calendar-nav" @click="changePeriod(1)">›</button>
+          <div class="calendar-head-actions">
+            <button class="calendar-nav" aria-label="Periodo siguiente" @click="changePeriod(1)">›</button>
+            <div class="calendar-view-toggle" aria-label="Vista del calendario">
+              <button
+                v-for="item in ['week', 'month', 'year']"
+                :key="item"
+                :class="{ active: view === item }"
+                :aria-pressed="view === item"
+                @click="setView(item)"
+              >
+                {{ item === "week" ? "Semana" : item === "month" ? "Mes" : "Año" }}
+              </button>
+            </div>
+          </div>
         </header>
         <div v-if="view === 'week'" class="week-calendar">
           <div

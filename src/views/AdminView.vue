@@ -293,7 +293,7 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
       <button class="primary">Guardar configuración</button>
     </form>
     <StudentsView v-if="activeSection === 'students'" embedded :refresh-key="studentsRefreshKey" />
-    <section v-if="activeSection === 'students'" class="contact-requests-panel">
+    <section v-if="activeSection === 'settings'" class="contact-requests-panel">
       <div class="contact-requests-head"><div><h2>Solicitudes desde la portada</h2><p>Mensajes enviados por personas que todavía no tienen cuenta.</p></div><span>{{ contactRequests.length }} {{ contactRequests.length === 1 ? 'solicitud' : 'solicitudes' }}</span></div>
       <div v-if="contactRequests.length" class="contact-requests-list"><article v-for="request in contactRequests" :key="request.id"><div><b>{{ request.name }}</b><small>{{ request.contact }} · {{ request.need }}</small></div><p>{{ request.message || 'Sin mensaje adicional.' }}</p><time>{{ new Date(request.created_at).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }) }}</time></article></div>
       <p v-else class="contact-requests-empty">No hay solicitudes de contacto nuevas.</p>
