@@ -29,6 +29,13 @@ jobs:
           node-version: 22
       - name: Instalar dependencias
         run: corepack pnpm@10.17.0 install --frozen-lockfile
+      - name: Comprobar horarios peninsulares en distintas zonas
+        run: |
+          for zone in Atlantic/Canary Europe/Madrid America/Los_Angeles Asia/Tokyo; do
+            TZ="$zone" node --experimental-strip-types --test tests/madridTime.test.ts tests/guest-bookings.test.mjs tests/calendar-rules.test.ts
+          done
+      - name: Comprobar disponibilidad y reintentos
+        run: corepack pnpm@10.17.0 exec vitest run tests/availability.test.ts
       - name: Comprobar tipos
         run: corepack pnpm@10.17.0 type-check
       - name: Generar aplicación de producción

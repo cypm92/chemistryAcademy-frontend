@@ -2,15 +2,21 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import type { Booking, User } from "../types";
 import { api, errorMessage } from "../services/api";
+import { validAvailability } from "../services/availability";
 import { session } from "../services/session";
+import { MADRID, madridInput, madridToUtc, madridCalendarDate, shiftCalendarPeriod, mondayStart, isWeekend, canCancelBooking } from "../services/madridTime";
 
 type CalendarView = "week" | "month" | "year";
 const view = ref<CalendarView>("week");
-const cursor = ref(new Date());
-const selectedDate = ref(new Date());
+const cursor = ref(madridCalendarDate());
+const selectedDate = ref(madridCalendarDate());
 const events = ref<Booking[]>([]);
 const requests = ref<Booking[]>([]);
 const loading = ref(true);
+const availabilityReady = ref(false);
+const availabilityError = ref("");
+const saving = ref(false);
+let loadVersion = 0;
 const message = ref("");
 const error = ref("");
 const block = reactive({
@@ -55,7 +61,7 @@ const subjects = [
   "Matemáticas Bachiller",
 ];
 
-const weekdays = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const weekdays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const months = [
   "Enero",
   "Febrero",
@@ -122,31 +128,18 @@ function addDays(date: Date, days: number) {
 function sameDay(a: Date, b: Date) {
   return dateKey(a) === dateKey(b);
 }
-function weekStart(date: Date) {
-  return addDays(
-    new Date(date.getFullYear(), date.getMonth(), date.getDate()),
-    -date.getDay(),
-  );
-}
 function eventsForDay(date: Date) {
   return events.value.filter((event) =>
-    sameDay(new Date(event.starts_at), date),
+    sameDay(madridCalendarDate(event.starts_at), date),
   );
 }
 function slotEvent(slot: string) {
   return eventsForDay(selectedDate.value).find((event) => {
-    const time = new Date(event.starts_at);
-    return (
-      `${String(time.getHours()).padStart(2, "0")}:${String(time.getMinutes()).padStart(2, "0")}` ===
-      slot
-    );
+    return madridInput(event.starts_at).slice(11) === slot;
   });
 }
 function slotStart(slot: string) {
-  const [hour, minute] = slot.split(":").map(Number);
-  const starts = new Date(selectedDate.value);
-  starts.setHours(hour, minute, 0, 0);
-  return starts;
+  return new Date(madridToUtc(`${dateKey(selectedDate.value)}T${slot}`));
 }
 const endOptions = computed(() => {
   if (!startSlot.value) return [];
@@ -155,12 +148,12 @@ const endOptions = computed(() => {
     .map((slots) => new Date(starts.getTime() + slots * 30 * 60 * 1000))
     .filter(
       (ends) =>
-        ends.getHours() < 21 ||
-        (ends.getHours() === 21 && ends.getMinutes() === 0),
+        Number(madridInput(ends).slice(11, 13)) < 21 ||
+        (Number(madridInput(ends).slice(11, 13)) === 21 && Number(madridInput(ends).slice(14, 16)) === 0),
     )
     .map(
       (ends) =>
-        `${String(ends.getHours()).padStart(2, "0")}:${String(ends.getMinutes()).padStart(2, "0")}`,
+        `${String(Number(madridInput(ends).slice(11, 13))).padStart(2, "0")}:${String(Number(madridInput(ends).slice(14, 16))).padStart(2, "0")}`,
     );
 });
 const selectedDurationSlots = computed(() => {
@@ -172,9 +165,7 @@ const selectedDurationSlots = computed(() => {
 function rangeIsUnavailable() {
   if (!startSlot.value || !endSlot.value) return false;
   const starts = slotStart(startSlot.value);
-  const [endHour, endMinute] = endSlot.value.split(":").map(Number);
-  const ends = new Date(selectedDate.value);
-  ends.setHours(endHour, endMinute, 0, 0);
+  const ends = slotStart(endSlot.value);
   return events.value.some(
     (event) =>
       !["declined", "cancelled"].includes(event.status) &&
@@ -214,9 +205,11 @@ function weekEventStyle(event: Booking) {
   const ends = new Date(event.ends_at);
   const calendarStart = 8 * 60;
   const calendarEnd = 21 * 60;
-  const eventStart = starts.getHours() * 60 + starts.getMinutes();
-  const eventEnd = dateKey(starts) === dateKey(ends)
-    ? ends.getHours() * 60 + ends.getMinutes()
+  const startTime = madridInput(starts);
+  const endTime = madridInput(ends);
+  const eventStart = Number(startTime.slice(11, 13)) * 60 + Number(startTime.slice(14, 16));
+  const eventEnd = startTime.slice(0, 10) === endTime.slice(0, 10)
+    ? Number(madridInput(ends).slice(11, 13)) * 60 + Number(madridInput(ends).slice(14, 16))
     : calendarEnd;
   const visibleStart = Math.max(calendarStart, eventStart);
   const visibleEnd = Math.min(calendarEnd, eventEnd);
@@ -228,58 +221,65 @@ function weekEventStyle(event: Booking) {
 }
 function eventTime(event: Booking) {
   return new Date(event.starts_at).toLocaleTimeString("es-ES", {
+    timeZone: MADRID,
     hour: "2-digit",
     minute: "2-digit",
   });
 }
 function formatDate(value: string) {
   return new Date(value).toLocaleString("es-ES", {
+    timeZone: MADRID,
     dateStyle: "medium",
     timeStyle: "short",
   });
 }
-const calendarItemIsClass = computed(
-  () =>
-    calendarItem.value?.user_id !== null &&
-    calendarItem.value?.user_id !== undefined,
-);
+function isCalendarClass(event: Booking | null) {
+  return !!event && !["blocked", "unavailable"].includes(event.status);
+}
+const calendarItemIsClass = computed(() => isCalendarClass(calendarItem.value));
 function monthDays(
   month = cursor.value.getMonth(),
   year = cursor.value.getFullYear(),
 ) {
   const first = new Date(year, month, 1);
-  const gridStart = addDays(first, -first.getDay());
+  const gridStart = mondayStart(first);
   return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index));
 }
 const weekDays = computed(() =>
   Array.from({ length: 7 }, (_, index) =>
-    addDays(weekStart(cursor.value), index),
+    addDays(mondayStart(cursor.value), index),
   ),
 );
 
 async function load() {
+  const version = ++loadVersion;
   loading.value = true;
+  availabilityReady.value = false;
+  availabilityError.value = "";
+  startSlot.value = "";
+  endSlot.value = "";
   try {
-    events.value = (await api.get("/bookings")).data;
-    if (isAdmin.value) {
-      students.value = (await api.get("/admin/users")).data.filter(
-        (user: User) => user.role !== "admin",
-      );
-      if (!adminClass.user_id && students.value[0])
-        adminClass.user_id = students.value[0].id;
-    }
+    const { data } = await api.get("/bookings");
+    if (!validAvailability(data)) throw new Error("Invalid availability");
+    if (version !== loadVersion) return;
+    events.value = data;
+    availabilityReady.value = true;
   } catch (err) {
-    error.value = errorMessage(err);
+    if (version !== loadVersion) return;
+    availabilityError.value = errorMessage(err);
   } finally {
-    loading.value = false;
+    if (version === loadVersion) loading.value = false;
   }
 }
+async function loadStudents() {
+  if (!isAdmin.value) return;
+  try {
+    students.value = (await api.get("/admin/users")).data.filter((user: User) => user.role !== "admin");
+    if (!adminClass.user_id && students.value[0]) adminClass.user_id = students.value[0].id;
+  } catch (err) { error.value = `No se pudieron cargar los alumnos. ${errorMessage(err)}`; }
+}
 function changePeriod(direction: number) {
-  const date = new Date(cursor.value);
-  if (view.value === "week") date.setDate(date.getDate() + direction * 7);
-  else if (view.value === "month") date.setMonth(date.getMonth() + direction);
-  else date.setFullYear(date.getFullYear() + direction);
-  cursor.value = date;
+  cursor.value = shiftCalendarPeriod(cursor.value, view.value, direction);
 }
 function setView(value: string) {
   view.value = value as CalendarView;
@@ -290,6 +290,11 @@ function chooseDate(date: Date) {
   view.value = "week";
 }
 async function reserve() {
+  if (!availabilityReady.value || saving.value) return;
+  if (isWeekend(selectedDate.value)) {
+    error.value = "No se pueden reservar clases los sábados ni los domingos.";
+    return;
+  }
   if (!startSlot.value || !endSlot.value) {
     error.value = "Selecciona la hora de inicio y de fin.";
     return;
@@ -305,6 +310,7 @@ async function reserve() {
     error.value = "Selecciona una asignatura para la clase.";
     return;
   }
+  saving.value = true;
   try {
     await api.post("/bookings", {
       starts_at: starts.toISOString(),
@@ -317,30 +323,30 @@ async function reserve() {
     message.value = "Solicitud enviada. La administradora debe confirmarla.";
     await load();
   } catch (err) {
-    error.value = errorMessage(err);
-  }
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
+  } finally { saving.value = false; }
 }
 function canCancel(booking: Booking) {
-  return (
-    booking.status === "requested" ||
-    (booking.status === "confirmed" &&
-      new Date(booking.starts_at).getTime() - Date.now() >= 24 * 60 * 60 * 1000)
-  );
+  return canCancelBooking(booking.status, booking.starts_at);
 }
 async function cancel(booking: Booking) {
+  if (!canCancel(booking)) { error.value = "Con 24 horas o menos, contacta con la profesora para cancelar."; return; }
   try {
     await api.post(`/bookings/${booking.id}/cancel`);
     await load();
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 async function decide(id: number, status: "confirmed" | "declined") {
   try {
+    error.value = "";
     await api.patch(`/admin/bookings/${id}`, { status });
+    calendarItem.value = null;
+    message.value = status === "confirmed" ? "Reserva aceptada." : "Reserva denegada.";
     await load();
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 async function createBlock() {
@@ -349,8 +355,8 @@ async function createBlock() {
   try {
     await api.post("/admin/bookings/block", {
       ...block,
-      starts_at: new Date(block.starts_at).toISOString(),
-      ends_at: new Date(block.ends_at).toISOString(),
+      starts_at: madridToUtc(block.starts_at),
+      ends_at: madridToUtc(block.ends_at),
     });
     block.starts_at = "";
     block.ends_at = "";
@@ -358,7 +364,7 @@ async function createBlock() {
     message.value = "Rango bloqueado en el calendario.";
     await load();
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 async function removeBlock(booking: Booking) {
@@ -367,22 +373,22 @@ async function removeBlock(booking: Booking) {
     message.value = "Rango desbloqueado.";
     await load();
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 function openCalendarEvent(event: Booking) {
   if (!isAdmin.value) return;
   calendarItem.value = event;
-  if (event.user_id === null || event.user_id === undefined) {
-    blockEdit.starts_at = new Date(event.starts_at).toISOString().slice(0, 16);
-    blockEdit.ends_at = new Date(event.ends_at).toISOString().slice(0, 16);
+  if (!isCalendarClass(event)) {
+    blockEdit.starts_at = madridInput(event.starts_at);
+    blockEdit.ends_at = madridInput(event.ends_at);
     blockEdit.status = event.status;
     blockEdit.note = event.note || "";
     return;
   }
   const starts = new Date(event.starts_at);
-  calendarEdit.date = starts.toISOString().slice(0, 10);
-  calendarEdit.time = starts.toTimeString().slice(0, 5);
+  calendarEdit.date = madridInput(starts).slice(0, 10);
+  calendarEdit.time = madridInput(starts).slice(11);
   calendarEdit.duration_slots = Math.round(
     (new Date(event.ends_at).getTime() - starts.getTime()) / 1_800_000,
   );
@@ -393,7 +399,7 @@ async function saveCalendarClass() {
   const event = calendarItem.value;
   if (!event || !calendarItemIsClass.value) return;
   try {
-    const starts = new Date(`${calendarEdit.date}T${calendarEdit.time}`);
+    const starts = new Date(madridToUtc(`${calendarEdit.date}T${calendarEdit.time}`));
     const { data } = await api.patch(`/admin/classes/${event.id}`, {
       starts_at: starts.toISOString(),
       duration_slots: Number(calendarEdit.duration_slots),
@@ -408,7 +414,7 @@ async function saveCalendarClass() {
     calendarItem.value = null;
     message.value = "Clase actualizada.";
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 async function cancelCalendarClass() {
@@ -424,7 +430,7 @@ async function cancelCalendarClass() {
     calendarItem.value = null;
     message.value = "Clase cancelada.";
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 async function unlockCalendarBlock() {
@@ -439,19 +445,19 @@ async function saveCalendarBlock() {
   try {
     const { data } = await api.patch(`/admin/bookings/${event.id}/block`, {
       ...blockEdit,
-      starts_at: new Date(blockEdit.starts_at).toISOString(),
-      ends_at: new Date(blockEdit.ends_at).toISOString(),
+      starts_at: madridToUtc(blockEdit.starts_at),
+      ends_at: madridToUtc(blockEdit.ends_at),
     });
     events.value = events.value.map((current) => current.id === event.id ? data : current);
     calendarItem.value = null;
     message.value = "Bloqueo actualizado.";
-  } catch (err) { error.value = errorMessage(err); }
+  } catch (err) { error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err); }
 }
 async function createAdminClass() {
   try {
     await api.post("/admin/classes", {
       ...adminClass,
-      starts_at: new Date(adminClass.starts_at).toISOString(),
+      starts_at: madridToUtc(adminClass.starts_at),
     });
     message.value = "Clase creada y confirmada.";
     adminClass.starts_at = "";
@@ -459,10 +465,10 @@ async function createAdminClass() {
     adminClass.admin_comment = "";
     await load();
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
-onMounted(load);
+onMounted(() => { void load(); void loadStudents(); });
 </script>
 
 <template>
@@ -484,6 +490,7 @@ onMounted(load);
         </button>
       </div>
     </div>
+    <p v-if="isAdmin && availabilityError" class="alert" role="alert">No se pudo cargar el calendario. {{ availabilityError }} <button type="button" data-testid="retry-availability" @click="load">Reintentar</button></p>
     <p v-if="error" class="alert">{{ error }}</p>
     <p v-if="message" class="success-alert">{{ message }}</p>
 
@@ -502,12 +509,13 @@ onMounted(load);
               'week-day',
               {
                 selected: sameDay(day, selectedDate),
-                today: sameDay(day, new Date()),
+                today: sameDay(day, madridCalendarDate()),
+                weekend: isWeekend(day),
               },
             ]"
             @click="chooseDate(day)"
           >
-            <span>{{ weekdays[day.getDay()] }}</span
+            <span>{{ weekdays[(day.getDay() + 6) % 7] }}</span
             ><b>{{ day.getDate() }}</b
             ><small
               >{{
@@ -556,7 +564,8 @@ onMounted(load);
               {
                 muted: day.getMonth() !== cursor.getMonth(),
                 selected: sameDay(day, selectedDate),
-                today: sameDay(day, new Date()),
+                today: sameDay(day, madridCalendarDate()),
+                weekend: isWeekend(day),
               },
             ]"
             @click="chooseDate(day)"
@@ -589,7 +598,7 @@ onMounted(load);
             ><span
               >{{
                 events.filter((event) => {
-                  const date = new Date(event.starts_at);
+                  const date = madridCalendarDate(event.starts_at);
                   return (
                     date.getFullYear() === cursor.getFullYear() &&
                     date.getMonth() === monthIndex - 1 &&
@@ -607,6 +616,7 @@ onMounted(load);
         <header>
           <p class="eyebrow">SOLICITAR UNA CLASE</p>
           <h2>{{ selectedLabel }}</h2>
+          <p v-if="isWeekend(selectedDate)" class="slots-empty">No se pueden reservar clases los sábados ni los domingos.</p>
           <small>Selecciona un rango de 30 minutos a 2 horas</small
           ><label class="topic-input"
             >Asignatura<select v-model="subject" required>
@@ -618,14 +628,14 @@ onMounted(load);
           >
           <div class="range-selectors">
             <label
-              >Desde<select v-model="startSlot" @change="chooseStart">
+              >Desde<select v-model="startSlot" :disabled="!availabilityReady || saving" @change="chooseStart">
                 <option value="">Hora de inicio</option>
                 <option v-for="slot in slots" :key="slot" :value="slot">
                   {{ slot }}
                 </option>
               </select></label
             ><label
-              >Hasta<select v-model="endSlot" :disabled="!startSlot">
+              >Hasta<select v-model="endSlot" :disabled="!availabilityReady || saving || !startSlot">
                 <option value="">Hora de fin</option>
                 <option v-for="slot in endOptions" :key="slot" :value="slot">
                   {{ slot }}
@@ -643,10 +653,11 @@ onMounted(load);
                 : `Vas a reservar ${selectedDurationSlots} ${selectedDurationSlots === 1 ? "clase" : "clases"} · ${durationLabel()}`
             }}
           </p>
+          <p class="madrid-time-notice">🕒 Horario de Madrid (España peninsular).</p>
           <button
             class="primary reserve-range"
             :disabled="
-              !subject || !selectedDurationSlots || rangeIsUnavailable()
+              !availabilityReady || saving || isWeekend(selectedDate) || !subject || !selectedDurationSlots || rangeIsUnavailable()
             "
             @click="reserve"
           >
@@ -654,6 +665,7 @@ onMounted(load);
           </button>
         </header>
         <p v-if="loading" class="slots-empty">Cargando calendario…</p>
+        <p v-else-if="availabilityError" class="alert" role="alert">No se pudo cargar la disponibilidad. {{ availabilityError }} <button type="button" data-testid="retry-availability" @click="load">Reintentar</button></p>
         <div v-else class="availability-note">
           <b>Consulta el calendario semanal</b
           ><span
@@ -695,8 +707,9 @@ onMounted(load);
               </select></label
             ><label
               >Nota <small>(opcional)</small
-              ><input v-model="block.note" maxlength="300" /></label
-            ><button class="primary">Bloquear rango</button>
+              ><input v-model="block.note" maxlength="300" /></label>
+            <p class="madrid-time-notice calendar-time-notice">🕒 Horario de Madrid (España peninsular).</p>
+            <button class="primary">Bloquear rango</button>
           </form>
           <form v-else @submit.prevent="createAdminClass">
             <label
@@ -740,6 +753,7 @@ onMounted(load);
                 placeholder="Enlace de Teams para la clase..."
               />
             </label>
+            <p class="madrid-time-notice calendar-time-notice">🕒 Horario de Madrid (España peninsular).</p>
             <button class="primary">Crear clase</button>
           </form>
         </header>
@@ -763,12 +777,14 @@ onMounted(load);
             <time
               ><b>{{
                 new Date(booking.starts_at).toLocaleDateString("es-ES", {
+                  timeZone: MADRID,
                   day: "2-digit",
                   month: "short",
                 })
               }}</b
               ><small>{{
                 new Date(booking.starts_at).toLocaleTimeString("es-ES", {
+                  timeZone: MADRID,
                   hour: "2-digit",
                   minute: "2-digit",
                 })
@@ -784,8 +800,8 @@ onMounted(load);
               ><small
                 v-if="booking.status === 'confirmed' && !canCancel(booking)"
                 class="cancel-help"
-                >Para cancelar con menos de 24 horas, contacta con la
-                administradora.</small
+                >Para cancelar con 24 horas o menos, contacta con la
+                profesora.</small
               >
             </div>
             <div class="booking-actions">
@@ -820,12 +836,14 @@ onMounted(load);
             <time
               ><b>{{
                 new Date(booking.starts_at).toLocaleDateString("es-ES", {
+                  timeZone: MADRID,
                   day: "2-digit",
                   month: "short",
                 })
               }}</b
               ><small>{{
                 new Date(booking.starts_at).toLocaleTimeString("es-ES", {
+                  timeZone: MADRID,
                   hour: "2-digit",
                   minute: "2-digit",
                 })
@@ -838,12 +856,13 @@ onMounted(load);
                   ? "Solicitud no confirmada"
                   : booking.status === "cancelled"
                     ? "Reserva cancelada"
-                    : "Clase realizada"
+                    : booking.status === "requested" ? "Pendiente de confirmación" : "Clase realizada"
               }}</small>
             </div>
             <span :class="['booking-status', `booking-${booking.status}`]">{{
               statusLabel(booking.status)
             }}</span>
+            <button v-if="canCancel(booking)" class="cancel-booking" @click="cancel(booking)">Cancelar</button>
           </article>
         </div>
       </article>
@@ -864,6 +883,7 @@ onMounted(load);
               <b>{{ request.user_name }}</b
               ><small>{{
                 new Date(request.starts_at).toLocaleString("es-ES", {
+                  timeZone: MADRID,
                   dateStyle: "medium",
                   timeStyle: "short",
                 })
@@ -1039,6 +1059,7 @@ onMounted(load);
             <p class="eyebrow">GESTIONAR CLASE</p>
             <h2>{{ calendarItem.user_name || "Clase particular" }}</h2>
             <p>{{ formatDate(calendarItem.starts_at) }}</p>
+            <p v-if="calendarItem.user_id === null">Invitado</p>
           </div>
           <button
             type="button"
@@ -1049,7 +1070,7 @@ onMounted(load);
             ×
           </button>
         </header>
-        <div class="calendar-manage-fields">
+        <p class="slots-empty">Horario peninsular español (Europe/Madrid).</p><p v-if="error" class="alert" role="alert">{{ error }}</p><div class="calendar-manage-fields">
           <label
             >Fecha<input
               v-model="calendarEdit.date"
@@ -1084,6 +1105,8 @@ onMounted(load);
           </label>
         </div>
         <footer>
+          <button v-if="calendarItem.status === 'requested'" type="button" class="secondary" @click="decide(calendarItem.id, 'confirmed')">Aceptar</button>
+          <button v-if="calendarItem.status === 'requested'" type="button" class="danger" @click="decide(calendarItem.id, 'declined')">Denegar</button>
           <button type="button" class="danger" @click="cancelCalendarClass">
             Cancelar clase</button
           ><span></span
@@ -1111,7 +1134,7 @@ onMounted(load);
             ×
           </button>
         </header>
-        <div class="calendar-manage-fields">
+        <p class="slots-empty">Horario peninsular español (Europe/Madrid).</p><p v-if="error" class="alert" role="alert">{{ error }}</p><div class="calendar-manage-fields">
           <label>Desde<input v-model="blockEdit.starts_at" type="datetime-local" required /></label>
           <label>Hasta<input v-model="blockEdit.ends_at" type="datetime-local" required /></label>
           <label>Estado<select v-model="blockEdit.status"><option value="blocked">Ocupado</option><option value="unavailable">No disponible</option></select></label>

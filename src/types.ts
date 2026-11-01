@@ -83,7 +83,7 @@ export interface AcademyClass {
   is_historical: boolean
   topic: string
   admin_comment: string
-  user_id: number
+  user_id: number | null
   user_name: string
   user_email: string
   materials: Array<{ id: number; title: string; filename: string; kind: 'video' | 'pdf' }>

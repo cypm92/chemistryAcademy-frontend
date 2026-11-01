@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import type { AcademyClass, Material } from "../types";
 import { api, errorMessage } from "../services/api";
 import { session } from "../services/session";
+import { MADRID, madridInput, madridToUtc, canCancelBooking } from "../services/madridTime";
 import MaterialViewer from "../components/MaterialViewer.vue";
 
 const classes = ref<AcademyClass[]>([]);
@@ -38,15 +39,18 @@ const subjects = [
   "Matemáticas Bachiller",
 ];
 const isAdmin = computed(() => session.user?.role === "admin");
+function classPersonKey(item: AcademyClass) {
+  return item.user_id === null ? `guest:${item.user_email.trim().toLowerCase()}` : `user:${item.user_id}`;
+}
 const students = computed(() =>
-  [...new Map(classes.value.map((item) => [item.user_id, item])).values()].sort(
+  [...new Map(classes.value.map((item) => [classPersonKey(item), item])).values()].sort(
     (a, b) => a.user_name.localeCompare(b.user_name),
   ),
 );
 const filtered = computed(() =>
   classes.value.filter((item) => {
     const search = filters.search.trim().toLocaleLowerCase();
-    const starts = new Date(item.starts_at);
+    const starts = madridInput(item.starts_at).slice(0, 10);
     const matchesSearch =
       !search ||
       [
@@ -59,12 +63,12 @@ const filtered = computed(() =>
         .toLocaleLowerCase()
         .includes(search);
     const matchesStudent =
-      !filters.student || item.user_id === Number(filters.student);
+      !filters.student || classPersonKey(item) === filters.student;
     const matchesStatus = !filters.status || item.status === filters.status;
     const matchesFrom =
-      !filters.dateFrom || starts >= new Date(`${filters.dateFrom}T00:00`);
+      !filters.dateFrom || starts >= filters.dateFrom;
     const matchesTo =
-      !filters.dateTo || starts <= new Date(`${filters.dateTo}T23:59:59`);
+      !filters.dateTo || starts <= filters.dateTo;
     const matchesMaterial =
       !filters.material ||
       (filters.material === "attached"
@@ -123,6 +127,7 @@ function statusLabel(status: AcademyClass["status"]) {
 }
 function formatDate(value: string) {
   return new Date(value).toLocaleString("es-ES", {
+    timeZone: MADRID,
     dateStyle: "full",
     timeStyle: "short",
   });
@@ -134,11 +139,7 @@ function canDelete(item: AcademyClass) {
   );
 }
 function canCancel(item: AcademyClass) {
-  return (
-    item.status === "requested" ||
-    (item.status === "confirmed" &&
-      new Date(item.starts_at).getTime() - Date.now() >= 24 * 60 * 60 * 1000)
-  );
+  return canCancelBooking(item.status, item.starts_at);
 }
 async function load() {
   loading.value = true;
@@ -149,7 +150,7 @@ async function load() {
     );
     classes.value = data;
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   } finally {
     loading.value = false;
   }
@@ -175,7 +176,7 @@ async function uploadAttachment(item: AcademyClass, event: Event) {
     success.value =
       "Archivo adjuntado y compartido automáticamente con el alumno.";
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   } finally {
     uploadingId.value = null;
     input.value = "";
@@ -195,7 +196,7 @@ async function setHistorical(item: AcademyClass, isHistorical: boolean) {
       ? "Clase movida al histórico."
       : "Clase restaurada a la vista habitual.";
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 async function deleteClass(item: AcademyClass) {
@@ -212,7 +213,7 @@ async function deleteClass(item: AcademyClass) {
     classes.value = classes.value.filter((current) => current.id !== item.id);
     success.value = "Clase eliminada de la plataforma.";
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 async function updateBookingStatus(
@@ -233,10 +234,11 @@ async function updateBookingStatus(
         ? "Reserva aceptada. La clase ya figura como confirmada."
         : "Reserva denegada.";
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 async function cancelBooking(item: AcademyClass) {
+  if (!canCancel(item)) { error.value = "Con 24 horas o menos, contacta con la profesora para cancelar."; return; }
   error.value = "";
   success.value = "";
   try {
@@ -246,7 +248,7 @@ async function cancelBooking(item: AcademyClass) {
     );
     success.value = "La reserva se ha cancelado.";
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 async function deleteAttachment(
@@ -276,7 +278,7 @@ async function deleteAttachment(
     );
     success.value = "Archivo eliminado correctamente.";
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 function openAttachment(material: AcademyClass["materials"][number]) {
@@ -293,8 +295,8 @@ function openAttachment(material: AcademyClass["materials"][number]) {
 }
 function editClass(item: AcademyClass) {
   const date = new Date(item.starts_at);
-  editForm.date = date.toISOString().slice(0, 10);
-  editForm.time = date.toTimeString().slice(0, 5);
+  editForm.date = madridInput(date).slice(0, 10);
+  editForm.time = madridInput(date).slice(11);
   editForm.duration_slots = Math.round(
     (new Date(item.ends_at).getTime() - date.getTime()) / 1_800_000,
   );
@@ -308,7 +310,7 @@ async function saveClassEdit() {
   error.value = "";
   success.value = "";
   try {
-    const starts = new Date(`${editForm.date}T${editForm.time}`);
+    const starts = new Date(madridToUtc(`${editForm.date}T${editForm.time}`));
     const { data } = await api.patch(`/admin/classes/${item.id}`, {
       starts_at: starts.toISOString(),
       duration_slots: Number(editForm.duration_slots),
@@ -321,7 +323,7 @@ async function saveClassEdit() {
     success.value = "Clase actualizada.";
     editingClass.value = null;
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 async function cancelAdminClass(item: AcademyClass) {
@@ -338,7 +340,7 @@ async function cancelAdminClass(item: AcademyClass) {
     );
     success.value = "Clase cancelada.";
   } catch (err) {
-    error.value = errorMessage(err);
+    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 onMounted(load);
@@ -346,6 +348,7 @@ onMounted(load);
 
 <template>
   <section class="page classes-page">
+    <p>Todos los horarios de clase se muestran en hora peninsular española (Europe/Madrid).</p>
     <div class="classes-heading">
       <div>
         <p class="eyebrow">
@@ -374,10 +377,10 @@ onMounted(load);
         <option value="">Todos los alumnos</option>
         <option
           v-for="student in students"
-          :key="student.user_id"
-          :value="student.user_id"
+          :key="classPersonKey(student)"
+          :value="classPersonKey(student)"
         >
-          {{ student.user_name }}
+          {{ student.user_name }}{{ student.user_id === null ? ` · ${student.user_email} (invitado)` : "" }}
         </option></select
       ><select v-if="isAdmin" v-model="filters.historical">
         <option value="current">Clases habituales</option>
@@ -416,12 +419,14 @@ onMounted(load);
             <div class="class-date">
               <b>{{
                 new Date(item.starts_at).toLocaleDateString("es-ES", {
+                  timeZone: MADRID,
                   day: "2-digit",
                   month: "short",
                 })
               }}</b
               ><small>{{
                 new Date(item.starts_at).toLocaleTimeString("es-ES", {
+                  timeZone: MADRID,
                   hour: "2-digit",
                   minute: "2-digit",
                 })
@@ -451,7 +456,7 @@ onMounted(load);
               </div>
               <p class="class-student">
                 <b>{{ isAdmin ? item.user_name : "Tu clase" }}</b
-                ><template v-if="isAdmin"> · {{ item.user_email }}</template> ·
+                ><template v-if="isAdmin"> · {{ item.user_email }}<template v-if="item.user_id === null"> · Invitado</template></template> ·
                 {{ formatDate(item.starts_at) }}
               </p>
               <section class="class-materials">
@@ -539,12 +544,12 @@ onMounted(load);
                 v-else-if="!isAdmin && item.status === 'confirmed'"
                 class="cancel-class-help"
               >
-                Para cancelar una clase con menos de 24 horas, contacta con la
-                administradora.
+                Para cancelar una clase con 24 horas o menos, contacta con la
+                profesora.
               </p>
               <div v-if="isAdmin" class="class-actions">
               <label
-                v-if="item.status === 'confirmed'"
+                v-if="item.user_id !== null && item.status === 'confirmed'"
                 class="class-upload"
                 :class="{ uploading: uploadingId === item.id }"
                 ><span>{{
@@ -558,7 +563,7 @@ onMounted(load);
                   :disabled="uploadingId !== null"
                   @change="uploadAttachment(item, $event)"
               /></label>
-              <p v-else class="attach-hint">
+              <p v-else-if="item.user_id !== null" class="attach-hint">
                 Los archivos se podrán adjuntar cuando la reserva esté
                 confirmada.
               </p>
@@ -620,7 +625,7 @@ onMounted(load);
             ×
           </button>
         </header>
-        <div class="edit-class-fields">
+        <p>Horario peninsular español (Europe/Madrid).</p><p v-if="error" class="alert" role="alert">{{ error }}</p><div class="edit-class-fields">
           <label
             >Fecha<input v-model="editForm.date" type="date" required
           /></label>
