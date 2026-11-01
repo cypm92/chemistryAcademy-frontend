@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { logout } from './session'
+import { isBookingEndpoint, normalizeBookingTimes } from './madridTime'
 
 export const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
@@ -14,7 +15,12 @@ api.interceptors.request.use((config) => {
 let redirectingAfterExpiredSession = false
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (isBookingEndpoint(response.config.url || '')) {
+      response.data = normalizeBookingTimes(response.data)
+    }
+    return response
+  },
   (error) => {
     const status = error.response?.status
     const authorization = error.config?.headers?.Authorization
