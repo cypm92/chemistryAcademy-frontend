@@ -44,9 +44,9 @@ function leave() {
         <img class="brand-logo" :src="branding.logoUrl || becienciaLogo" alt="" />
       </button>
       <nav>
-        <RouterLink to="/library">Mi biblioteca</RouterLink>
-        <RouterLink to="/reservations">Mis reservas</RouterLink>
-        <RouterLink to="/classes">Mis clases</RouterLink>
+        <RouterLink to="/library">Biblioteca</RouterLink>
+        <RouterLink to="/reservations">Reservas</RouterLink>
+        <RouterLink to="/classes">Clases</RouterLink>
         <RouterLink v-if="session.user.role === 'admin'" to="/admin">Administración</RouterLink>
       </nav>
       <div class="account-menu">

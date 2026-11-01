@@ -14,6 +14,19 @@ const deferred = () => { let resolve!: (value: any) => void; let reject!: (reaso
 beforeEach(() => { vi.resetAllMocks(); vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-02T06:00:00Z')); session.user = { role: 'student' } as any })
 
 describe('disponibilidad', () => {
+  it('permite cambiar la vista desde la cabecera del calendario', async () => {
+    get.mockResolvedValue({ data: [] } as any)
+    const wrapper = mount(ReservationsView); await flushPromises()
+    const buttons = wrapper.findAll('.calendar-head .calendar-view-toggle button')
+    expect(buttons.map(button => button.text())).toEqual(['Semana', 'Mes', 'Año'])
+    for (const [index, selector] of ['.week-calendar', '.month-calendar', '.year-calendar'].entries()) {
+      await buttons[index].trigger('click')
+      expect(buttons[index].attributes('aria-pressed')).toBe('true')
+      expect(wrapper.find(selector).exists()).toBe(true)
+    }
+    expect(wrapper.find('.calendar-head-actions .calendar-nav').exists()).toBe(true)
+    wrapper.unmount()
+  })
   it('bloquea el modal mientras carga y después de fallo, y permite reintentar', async () => {
     const request = deferred(); get.mockReturnValueOnce(request.promise)
     const wrapper = mount(TrialBookingModal, { global: { stubs: { RouterLink: true } } })

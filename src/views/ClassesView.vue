@@ -348,21 +348,7 @@ onMounted(load);
 
 <template>
   <section class="page classes-page">
-    <p>Todos los horarios de clase se muestran en hora peninsular española (Europe/Madrid).</p>
     <div class="classes-heading">
-      <div>
-        <p class="eyebrow">
-          {{ isAdmin ? "GESTIÓN ACADÉMICA" : "MIS CLASES" }}
-        </p>
-        <h1>Mis clases</h1>
-        <p>
-          {{
-            isAdmin
-              ? "Consulta el historial de clases y adjunta materiales para cada alumno."
-              : "Consulta tus clases y los archivos que tu profesora ha compartido contigo."
-          }}
-        </p>
-      </div>
       <span>{{ filtered.length }} clases</span>
     </div>
     <p v-if="error" class="alert">{{ error }}</p>
