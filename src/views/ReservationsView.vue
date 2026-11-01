@@ -4,7 +4,7 @@ import type { Booking, User } from "../types";
 import { api, errorMessage } from "../services/api";
 import { validAvailability } from "../services/availability";
 import { session } from "../services/session";
-import { MADRID, madridInput, madridToUtc, madridCalendarDate, shiftCalendarPeriod, mondayStart, isWeekend, canCancelBooking } from "../services/madridTime";
+import { classEndsByMadridCutoff, MADRID, madridInput, madridToUtc, madridCalendarDate, shiftCalendarPeriod, mondayStart, isWeekend, canCancelBooking } from "../services/madridTime";
 
 type CalendarView = "week" | "month" | "year";
 const view = ref<CalendarView>("week");
@@ -400,6 +400,7 @@ async function saveCalendarClass() {
   if (!event || !calendarItemIsClass.value) return;
   try {
     const starts = new Date(madridToUtc(`${calendarEdit.date}T${calendarEdit.time}`));
+    if (!classEndsByMadridCutoff(starts, Number(calendarEdit.duration_slots))) { error.value = "La clase debe terminar como máximo a las 21:00 (hora de Madrid)."; return; }
     const { data } = await api.patch(`/admin/classes/${event.id}`, {
       starts_at: starts.toISOString(),
       duration_slots: Number(calendarEdit.duration_slots),
@@ -455,9 +456,12 @@ async function saveCalendarBlock() {
 }
 async function createAdminClass() {
   try {
+    const starts = madridToUtc(adminClass.starts_at);
+    if (!classEndsByMadridCutoff(new Date(starts), Number(adminClass.duration_slots))) { error.value = "La clase debe terminar como máximo a las 21:00 (hora de Madrid)."; return; }
+    error.value = "";
     await api.post("/admin/classes", {
       ...adminClass,
-      starts_at: madridToUtc(adminClass.starts_at),
+      starts_at: starts,
     });
     message.value = "Clase creada y confirmada.";
     adminClass.starts_at = "";

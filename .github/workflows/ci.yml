@@ -35,7 +35,7 @@ jobs:
             TZ="$zone" node --experimental-strip-types --test tests/madridTime.test.ts tests/guest-bookings.test.mjs tests/calendar-rules.test.ts
           done
       - name: Comprobar componentes de disponibilidad y notificaciones
-        run: corepack pnpm@10.17.0 exec vitest run tests/availability.test.ts tests/admin-notifications.test.ts
+        run: corepack pnpm@10.17.0 exec vitest run tests/availability.test.ts tests/admin-notifications.test.ts tests/cutoff.test.ts
       - name: Comprobar tipos
         run: corepack pnpm@10.17.0 type-check
       - name: Generar aplicación de producción

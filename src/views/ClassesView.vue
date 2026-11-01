@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref } from "vue";
 import type { AcademyClass, Material } from "../types";
 import { api, errorMessage } from "../services/api";
 import { session } from "../services/session";
-import { MADRID, madridInput, madridToUtc, canCancelBooking } from "../services/madridTime";
+import { classEndsByMadridCutoff, MADRID, madridInput, madridToUtc, canCancelBooking } from "../services/madridTime";
 import MaterialViewer from "../components/MaterialViewer.vue";
 
 const classes = ref<AcademyClass[]>([]);
@@ -311,6 +311,7 @@ async function saveClassEdit() {
   success.value = "";
   try {
     const starts = new Date(madridToUtc(`${editForm.date}T${editForm.time}`));
+    if (!classEndsByMadridCutoff(starts, Number(editForm.duration_slots))) { error.value = "La clase debe terminar como máximo a las 21:00 (hora de Madrid)."; return; }
     const { data } = await api.patch(`/admin/classes/${item.id}`, {
       starts_at: starts.toISOString(),
       duration_slots: Number(editForm.duration_slots),
