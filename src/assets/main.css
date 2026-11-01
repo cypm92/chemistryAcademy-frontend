@@ -159,7 +159,9 @@
 
 .madrid-time-notice { margin: 8px 0 12px; padding: 12px 14px; border: 2px solid #a55d00; border-radius: 10px; background: #fff0c2; color: #663900; font-size: 14px; font-weight: 700; line-height: 1.4; }
 .calendar-time-notice { margin: 12px 0; }
-.classes-heading > span { margin-left: auto; }
+.class-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.class-section-heading h2 { margin: 0; font: 600 20px 'Fraunces'; color: var(--ink); }
+.class-count { flex-shrink: 0; padding: 8px 11px; border-radius: 20px; background: var(--mint); color: var(--brand-green); font-size: 12px; font-weight: 700; }
 .class-date .class-time-zone { text-align: center; }
 .reservation-layout > .calendar-panel { align-self: start; }
 .calendar-head { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; }

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import TrialBookingModal from '../src/components/TrialBookingModal.vue'
 import ReservationsView from '../src/views/ReservationsView.vue'
+import ClassesView from '../src/views/ClassesView.vue'
 import { api } from '../src/services/api'
 import { session } from '../src/services/session'
 
@@ -14,6 +15,27 @@ const deferred = () => { let resolve!: (value: any) => void; let reject!: (reaso
 beforeEach(() => { vi.resetAllMocks(); vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-02T06:00:00Z')); session.user = { role: 'student' } as any })
 
 describe('disponibilidad', () => {
+  it('muestra el contador total junto a la primera sección visible y en resultados vacíos', async () => {
+    session.user = { role: 'admin' } as any
+    const base = { user_id: 1, user_name: 'Alumno', user_email: 'alumno@example.com', topic: 'Química', starts_at: '2026-11-03T10:00:00Z', materials: [], is_historical: false }
+    get.mockResolvedValue({ data: [{ ...base, id: 1, status: 'requested' }, { ...base, id: 2, status: 'confirmed' }] } as any)
+    const wrapper = mount(ClassesView, { global: { stubs: { MaterialViewer: true } } }); await flushPromises()
+    const heading = () => wrapper.find('.class-section-heading')
+    expect(heading().text()).toContain('Solicitudes pendientes')
+    expect(heading().text()).toContain('2 clases')
+    const cards = wrapper.findAll('.class-card')
+    expect(cards[0].get('.class-status').text()).toBe('Reservada')
+    expect(cards[1].get('.class-status').text()).toBe('Confirmada')
+    expect(cards[0].find('.class-main-title .eyebrow').exists()).toBe(false)
+    expect(cards[0].findAll('.request-decision')).toHaveLength(2)
+    const status = wrapper.findAll('.class-filters select').find(select => select.text().includes('Confirmadas'))!
+    await status.setValue('confirmed')
+    expect(heading().text()).toContain('Clases e historial')
+    expect(heading().text()).toContain('1 clase')
+    await status.setValue('cancelled')
+    expect(heading().text()).toContain('0 clases')
+    wrapper.unmount()
+  })
   it('permite cambiar la vista desde la cabecera del calendario', async () => {
     get.mockResolvedValue({ data: [] } as any)
     const wrapper = mount(ReservationsView); await flushPromises()

@@ -348,9 +348,7 @@ onMounted(load);
 
 <template>
   <section class="page classes-page">
-    <div class="classes-heading">
-      <span>{{ filtered.length }} clases</span>
-    </div>
+
     <p v-if="error" class="alert">{{ error }}</p>
     <p v-if="success" class="success-alert">{{ success }}</p>
     <section class="class-filters">
@@ -386,16 +384,20 @@ onMounted(load);
       ><label>Hasta<input v-model="filters.dateTo" type="date" /></label>
     </section>
     <p v-if="loading" class="classes-empty">Cargando clases...</p>
-    <p v-else-if="!filtered.length" class="classes-empty">
-      No hay clases que coincidan con estos filtros.
-    </p>
+    <div v-else-if="!filtered.length" class="class-section-heading">
+      <p class="classes-empty">No hay clases que coincidan con estos filtros.</p>
+      <span class="class-count">0 clases</span>
+    </div>
     <div v-else class="class-sections">
       <section
-        v-for="section in classSections"
+        v-for="(section, index) in classSections"
         :key="section.id"
         class="class-section"
       >
-        <h2>{{ section.title }}</h2>
+        <div class="class-section-heading">
+          <h2>{{ section.title }}</h2>
+          <span v-if="index === 0" class="class-count">{{ filtered.length }} {{ filtered.length === 1 ? 'clase' : 'clases' }}</span>
+        </div>
         <div class="class-list">
           <article
             v-for="item in section.items"
@@ -422,13 +424,6 @@ onMounted(load);
             <div class="class-main">
               <div class="class-main-title">
                 <div>
-                  <p class="eyebrow">
-                    {{
-                      item.is_historical
-                        ? "HISTÓRICA"
-                        : statusLabel(item.status)
-                    }}
-                  </p>
                   <h2>{{ item.topic }}</h2>
                 </div>
                 <span
@@ -440,6 +435,7 @@ onMounted(load);
                     item.is_historical ? "Histórica" : statusLabel(item.status)
                   }}</span
                 >
+
               </div>
               <p class="class-student">
                 <b>{{ isAdmin ? item.user_name : "Tu clase" }}</b
