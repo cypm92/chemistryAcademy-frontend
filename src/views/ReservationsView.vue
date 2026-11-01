@@ -473,23 +473,7 @@ onMounted(() => { void load(); void loadStudents(); });
 
 <template>
   <section class="page reservations-page">
-    <div class="reservation-heading">
-      <div>
-        <p class="eyebrow">CLASES PARTICULARES</p>
-        <h1>Mis reservas</h1>
-        <p>Elige una franja de 30 minutos para solicitar una clase.</p>
-      </div>
-      <div class="calendar-view-toggle">
-        <button
-          v-for="item in ['week', 'month', 'year']"
-          :key="item"
-          :class="{ active: view === item }"
-          @click="setView(item)"
-        >
-          {{ item === "week" ? "Semana" : item === "month" ? "Mes" : "Año" }}
-        </button>
-      </div>
-    </div>
+
     <p v-if="isAdmin && availabilityError" class="alert" role="alert">No se pudo cargar el calendario. {{ availabilityError }} <button type="button" data-testid="retry-availability" @click="load">Reintentar</button></p>
     <p v-if="error" class="alert">{{ error }}</p>
     <p v-if="message" class="success-alert">{{ message }}</p>
@@ -499,7 +483,20 @@ onMounted(() => { void load(); void loadStudents(); });
         <header class="calendar-head">
           <button class="calendar-nav" @click="changePeriod(-1)">‹</button>
           <h2>{{ title }}</h2>
-          <button class="calendar-nav" @click="changePeriod(1)">›</button>
+          <div class="calendar-head-actions">
+            <button class="calendar-nav" aria-label="Periodo siguiente" @click="changePeriod(1)">›</button>
+            <div class="calendar-view-toggle" aria-label="Vista del calendario">
+              <button
+                v-for="item in ['week', 'month', 'year']"
+                :key="item"
+                :class="{ active: view === item }"
+                :aria-pressed="view === item"
+                @click="setView(item)"
+              >
+                {{ item === "week" ? "Semana" : item === "month" ? "Mes" : "Año" }}
+              </button>
+            </div>
+          </div>
         </header>
         <div v-if="view === 'week'" class="week-calendar">
           <div
