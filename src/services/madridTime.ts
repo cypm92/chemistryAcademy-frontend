@@ -67,3 +67,10 @@ export function isWeekend(date: Date): boolean {
 export function canCancelBooking(status: string, startsAt: string, now = Date.now()): boolean {
   return status === 'requested' || (status === 'confirmed' && new Date(startsAt).getTime() - now > 24 * 60 * 60 * 1000);
 }
+
+/** A class must finish on its starting Madrid date by 21:00 inclusive. */
+export function classEndsByMadridCutoff(starts: Date, durationSlots: number): boolean {
+  const start = madridInput(starts)
+  const end = madridInput(new Date(starts.getTime() + durationSlots * 30 * 60 * 1000))
+  return end.slice(0, 10) === start.slice(0, 10) && end.slice(11) <= "21:00"
+}
