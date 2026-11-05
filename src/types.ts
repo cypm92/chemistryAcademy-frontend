@@ -80,6 +80,7 @@ export interface AcademyClass {
   starts_at: string
   ends_at: string
   status: 'requested' | 'confirmed' | 'declined' | 'cancelled'
+  management_status: 'paid' | 'pending_payment' | null
   is_historical: boolean
   topic: string
   admin_comment: string

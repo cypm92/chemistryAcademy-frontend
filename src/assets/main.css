@@ -177,3 +177,23 @@
 .week-day.weekend, .month-day.weekend { background-color: #faeef5; }
 .week-day.weekend.today, .month-day.weekend.today { background-color: #f5e2ed; }
 .week-day.weekend.selected, .month-day.weekend.selected { background-color: #eed2e2; }
+
+.class-card.needs-management { background-color: #fff4e8; border-color: #e8b57e; }
+.class-status.needs-management { background-color: #ffe2c4; color: #704017; }
+button.class-status { border: 0; cursor: pointer; }
+.class-management-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.class-management-actions button { border: 1px solid var(--line); border-radius: 9px; background: var(--paper); padding: 8px 12px; color: var(--ink); font-weight: 700; }
+.class-request-actions .request-decision { width: auto; height: auto; min-height: 32px; padding: 7px 11px; border-radius: 9px; font-size: 12px; }
+button.class-status:focus-visible, .class-request-actions button:focus-visible, .class-management-actions button:focus-visible { outline: 2px solid var(--brand-green); outline-offset: 3px; }
+
+/* El menú flota sobre las tarjetas sin alterar su altura. */
+.class-card { overflow: visible; }
+.class-status-control { position: relative; flex: 0 0 auto; max-width: 100%; }
+.class-status-control:has(.class-status-menu) { z-index: 10; }
+.class-status-control > button::after { content: ' ▾'; }
+.class-status-menu { position: absolute; top: calc(100% + 5px); right: 0; z-index: 10; width: max-content; max-width: min(260px, calc(100vw - 32px)); display: grid; padding: 5px; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); box-shadow: 0 8px 24px #10251d30; }
+.class-status-menu button { min-height: 40px; border: 0; border-radius: 6px; padding: 9px 12px; text-align: left; color: var(--ink); background: transparent; font-weight: 700; cursor: pointer; }
+.class-status-menu button:hover { background: var(--mint); }
+.class-status-menu button:disabled { opacity: .5; cursor: wait; }
+.class-status-menu button:focus-visible { outline: 2px solid var(--brand-green); outline-offset: -2px; }
+@media (max-width: 700px) { .class-status-control { align-self: flex-end; } }
