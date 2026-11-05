@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import type { AcademyClass, Material } from "../types";
 import { api, errorMessage } from "../services/api";
 import { session } from "../services/session";
@@ -13,6 +13,51 @@ const selectedMaterial = ref<Material | null>(null);
 const editingClass = ref<AcademyClass | null>(null);
 const error = ref("");
 const success = ref("");
+const openStatusId = ref<number | null>(null);
+const statusBusy = ref(false);
+function closeStatus(restoreFocus = false) {
+  const id = openStatusId.value;
+  openStatusId.value = null;
+  if (restoreFocus && id !== null) nextTick(() => (document.getElementById('class-status-' + id) || document.getElementById('class-card-' + id) || document.querySelector<HTMLElement>('.classes-search input'))?.focus());
+}
+function onStatusOutside(event: MouseEvent) {
+  if (openStatusId.value !== null && !(event.target as Element).closest?.('.class-status-control')) closeStatus();
+}
+function onStatusKey(event: KeyboardEvent) {
+  if (event.key === 'Escape' && openStatusId.value !== null) { event.preventDefault(); closeStatus(true); }
+}
+function onStatusFocusOut(event: FocusEvent) {
+  const control = event.currentTarget as HTMLElement;
+  if (!control.contains(event.relatedTarget as Node | null)) closeStatus();
+}
+onMounted(() => { document.addEventListener('click', onStatusOutside); document.addEventListener('keydown', onStatusKey); });
+onUnmounted(() => { document.removeEventListener('click', onStatusOutside); document.removeEventListener('keydown', onStatusKey); });
+
+const now = ref(Date.now());
+let clockTimer: ReturnType<typeof setTimeout> | undefined;
+function refreshClock() {
+  now.value = Date.now();
+  if (clockTimer) clearTimeout(clockTimer);
+  const next = classes.value
+    .filter(item => item.status === 'confirmed')
+    .map(item => new Date(item.ends_at).getTime())
+    .filter(end => end > now.value)
+    .sort((a, b) => a - b)[0];
+  if (next !== undefined) clockTimer = setTimeout(refreshClock, Math.min(next - now.value, 2_147_483_647));
+}
+watch(classes, refreshClock);
+onMounted(() => { window.addEventListener('focus', refreshClock); document.addEventListener('visibilitychange', refreshClock); });
+onUnmounted(() => { if (clockTimer) clearTimeout(clockTimer); window.removeEventListener('focus', refreshClock); document.removeEventListener('visibilitychange', refreshClock); });
+function hasEnded(item: AcademyClass) {
+  return new Date(item.ends_at).getTime() <= now.value;
+}
+function needsManagement(item: AcademyClass) {
+  return item.status === 'confirmed' && hasEnded(item) && !item.management_status;
+}
+function visibleStatus(item: AcademyClass) {
+  return isAdmin.value && item.status === 'confirmed' && hasEnded(item) && item.management_status
+    ? item.management_status : item.status;
+}
 const filters = reactive({
   search: "",
   student: "",
@@ -64,7 +109,7 @@ const filtered = computed(() =>
         .includes(search);
     const matchesStudent =
       !filters.student || classPersonKey(item) === filters.student;
-    const matchesStatus = !filters.status || item.status === filters.status;
+    const matchesStatus = !filters.status || visibleStatus(item) === filters.status;
     const matchesFrom =
       !filters.dateFrom || starts >= filters.dateFrom;
     const matchesTo =
@@ -117,12 +162,14 @@ const classSections = computed(() => {
       : []),
   ];
 });
-function statusLabel(status: AcademyClass["status"]) {
+function statusLabel(status: AcademyClass["status"] | 'paid' | 'pending_payment') {
   return {
     requested: "Reservada",
     confirmed: "Confirmada",
-    declined: "Denegada",
+    declined: "Rechazada",
     cancelled: "Cancelada",
+    paid: "Pagada",
+    pending_payment: "Pendiente de pago",
   }[status];
 }
 function formatDate(value: string) {
@@ -220,6 +267,8 @@ async function updateBookingStatus(
   item: AcademyClass,
   nextStatus: "confirmed" | "declined",
 ) {
+  if (statusBusy.value) return;
+  statusBusy.value = true;
   error.value = "";
   success.value = "";
   try {
@@ -229,13 +278,29 @@ async function updateBookingStatus(
     classes.value = classes.value.map((current) =>
       current.id === item.id ? { ...current, status: data.status } : current,
     );
+    if (openStatusId.value === item.id) closeStatus(true);
     success.value =
       nextStatus === "confirmed"
         ? "Reserva aceptada. La clase ya figura como confirmada."
         : "Reserva denegada.";
   } catch (err) {
     error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
-  }
+  } finally { statusBusy.value = false; }
+}
+async function updateManagement(item: AcademyClass, status: 'paid' | 'pending_payment' | null) {
+  if (statusBusy.value || !isAdmin.value || item.status !== 'confirmed' || !hasEnded(item)) return;
+  if (status === null && (!item.management_status || !window.confirm('¿Volver esta clase a confirmada? Se quitará su estado de pago y podrás corregir el horario.'))) return;
+  statusBusy.value = true;
+  error.value = '';
+  success.value = '';
+  try {
+    const { data } = await api.patch(`/admin/classes/${item.id}/management`, { management_status: status });
+    classes.value = classes.value.map(current => current.id === item.id ? { ...current, management_status: data.management_status } : current);
+    if (openStatusId.value === item.id) closeStatus(true);
+    success.value = 'Gestión de la clase actualizada.';
+  } catch (err) {
+    error.value = errorMessage(err);
+  } finally { statusBusy.value = false; }
 }
 async function cancelBooking(item: AcademyClass) {
   if (!canCancel(item)) { error.value = "Con 24 horas o menos, contacta con la profesora para cancelar."; return; }
@@ -328,21 +393,26 @@ async function saveClassEdit() {
   }
 }
 async function cancelAdminClass(item: AcademyClass) {
+  if (statusBusy.value) return;
   if (
     !window.confirm(
-      `¿Cancelar la clase de ${item.user_name}? El alumno verá la cancelación.`,
+      `¿Cancelar la clase de ${item.user_name}? El alumno verá la cancelación.${item.management_status ? ' La clase dejará de contar como pagada o pendiente de pago en los informes futuros. Los informes ya enviados no se modificarán.' : ''}`,
     )
   )
     return;
+  statusBusy.value = true;
+  error.value = "";
+  success.value = "";
   try {
     const { data } = await api.post(`/admin/classes/${item.id}/cancel`);
     classes.value = classes.value.map((current) =>
       current.id === item.id ? data : current,
     );
+    if (openStatusId.value === item.id) closeStatus(true);
     success.value = "Clase cancelada.";
   } catch (err) {
     error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
-  }
+  } finally { statusBusy.value = false; }
 }
 onMounted(load);
 </script>
@@ -375,7 +445,9 @@ onMounted(load);
         <option value="">Todos los estados</option>
         <option value="requested">Reservadas</option>
         <option value="confirmed">Confirmadas</option>
-        <option value="declined">Denegadas</option>
+        <option v-if="isAdmin" value="paid">Pagadas</option>
+        <option v-if="isAdmin" value="pending_payment">Pendientes de pago</option>
+        <option value="declined">Rechazadas</option>
         <option value="cancelled">Canceladas</option></select
       ><select v-model="filters.material">
         <option value="">Cualquier material</option>
@@ -403,7 +475,9 @@ onMounted(load);
           <article
             v-for="item in section.items"
             :key="item.id"
+            :id="'class-card-' + item.id" tabindex="-1"
             class="class-card"
+            :class="{ 'needs-management': isAdmin && needsManagement(item) }"
           >
             <div class="class-date">
               <b>{{
@@ -427,15 +501,26 @@ onMounted(load);
                 <div>
                   <h2>{{ item.topic }}</h2>
                 </div>
-                <span
-                  :class="[
-                    'class-status',
-                    item.is_historical ? 'historical' : item.status,
-                  ]"
-                  >{{
-                    item.is_historical ? "Histórica" : statusLabel(item.status)
-                  }}</span
-                >
+                <div v-if="isAdmin && (item.status === 'requested' || (item.status === 'confirmed' && hasEnded(item)))" class="class-status-control" @focusout="onStatusFocusOut">
+                  <button :id="'class-status-' + item.id" type="button"
+                    :class="['class-status', item.status, { 'needs-management': needsManagement(item) }]"
+                    :aria-expanded="openStatusId === item.id" :aria-controls="'class-status-options-' + item.id"
+                    @click="openStatusId = openStatusId === item.id ? null : item.id">{{ statusLabel(visibleStatus(item)) }}{{ needsManagement(item) ? ' · Pendiente de gestión' : '' }}</button>
+                  <div v-if="openStatusId === item.id" :id="'class-status-options-' + item.id" class="class-status-menu" role="group" aria-label="Cambiar estado">
+                    <template v-if="item.status === 'requested'">
+                      <button type="button" :disabled="statusBusy" @click="updateBookingStatus(item, 'confirmed')">Aprobar</button>
+                      <button type="button" :disabled="statusBusy" @click="updateBookingStatus(item, 'declined')">Rechazar</button>
+                    </template>
+                    <template v-else>
+                      <button type="button" :disabled="statusBusy" @click="updateManagement(item, 'paid')">Pagada</button>
+                      <button type="button" :disabled="statusBusy" @click="updateManagement(item, 'pending_payment')">Pendiente de pago</button>
+                      <button v-if="item.management_status" type="button" :disabled="statusBusy" @click="updateManagement(item, null)">Volver a confirmada</button>
+                      <button type="button" :disabled="statusBusy" @click="cancelAdminClass(item)">Cancelada</button>
+                    </template>
+                  </div>
+                </div>
+                <span v-else :class="['class-status', item.status]">{{ statusLabel(item.status) }}</span>
+                <span v-if="item.is_historical" class="class-status historical">Histórica</span>
 
               </div>
               <p class="class-student">
@@ -497,26 +582,6 @@ onMounted(load);
               <p v-if="item.admin_comment" class="class-comment">
                 <b>Información de la profesora:</b> {{ item.admin_comment }}
               </p>
-              <div
-                v-if="
-                  isAdmin && item.status === 'requested' && !item.is_historical
-                "
-                class="class-request-actions"
-              >
-                <button
-                  class="request-decision accept"
-                  title="Aceptar reserva"
-                  @click="updateBookingStatus(item, 'confirmed')"
-                >
-                  ✓</button
-                ><button
-                  class="request-decision decline"
-                  title="Denegar reserva"
-                  @click="updateBookingStatus(item, 'declined')"
-                >
-                  ×
-                </button>
-              </div>
               <button
                 v-if="!isAdmin && canCancel(item)"
                 class="cancel-class-button"
