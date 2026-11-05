@@ -9,6 +9,8 @@ export default defineConfig(({ mode }) => {
       // Puertos distintos de LifeHub para permitir desarrollar ambos proyectos a la vez.
       port: Number(env.VITE_DEV_PORT || 5174),
       strictPort: true,
+      // La caché de pnpm no es código fuente y ralentiza el polling en Windows.
+      watch: { ignored: ['**/.pnpm-store/**'] },
       proxy: {
         '/api': {
           target: env.VITE_DEV_API_TARGET || 'http://127.0.0.1:8001',

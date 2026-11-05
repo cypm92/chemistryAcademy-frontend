@@ -27,7 +27,8 @@ describe('disponibilidad', () => {
     expect(cards[0].get('.class-status').text()).toBe('Reservada')
     expect(cards[1].get('.class-status').text()).toBe('Confirmada')
     expect(cards[0].find('.class-main-title .eyebrow').exists()).toBe(false)
-    expect(cards[0].findAll('.request-decision')).toHaveLength(2)
+    await cards[0].get('button.class-status').trigger('click')
+    expect(cards[0].findAll('.class-status-menu button').map(button => button.text())).toEqual(['Aprobar', 'Rechazar'])
     const status = wrapper.findAll('.class-filters select').find(select => select.text().includes('Confirmadas'))!
     await status.setValue('confirmed')
     expect(heading().text()).toContain('Clases e historial')
