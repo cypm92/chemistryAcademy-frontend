@@ -1,6 +1,12 @@
 node_modules/
 dist/
 *.tsbuildinfo
+__pycache__/
+*.py[cod]
 .pnpm-store/
 .env
 .env.development.local
+
+# Environment files; example templates are safe to track.
+.env*
+!.env*.example

@@ -4,6 +4,7 @@ import { api, apiUrl, errorMessage } from '../services/api'
 import type { Folder, Material, Tag, User } from '../types'
 import FolderTreePicker from '../components/FolderTreePicker.vue'
 import StudentsView from './StudentsView.vue'
+import MicrosoftIntegration from '../components/MicrosoftIntegration.vue'
 
 const users = ref<User[]>([])
 const materials = ref<Material[]>([])
@@ -19,7 +20,7 @@ const editingFolderId = ref<number | null>(null)
 const folderNameInput = ref<HTMLInputElement | null>(null)
 const folderSearch = ref('')
 const expandedFolderIds = ref<number[]>([])
-const activeSection = ref<'students' | 'folders' | 'resources' | 'settings'>('students')
+const activeSection = ref<'students' | 'folders' | 'resources' | 'settings'>(new URLSearchParams(window.location.search).has('microsoft') ? 'settings' : 'students')
 const notificationSettings = ref({ reminder_interval_minutes: 1440 })
 type PublicResource = { id: number; title: string; description: string; subject: string; file_url?: string; url?: string; community?: string; exam_year?: number; exam_part?: 'statement' | 'solutions' }
 const publicResources = ref<{ exams: PublicResource[]; forms: PublicResource[]; videos: PublicResource[]; documents: PublicResource[] }>({ exams: [], forms: [], videos: [], documents: [] })
@@ -286,6 +287,7 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
         </template>
       </section>
     </div>
+    <MicrosoftIntegration v-show="activeSection === 'settings'" />
     <form v-if="activeSection === 'settings'" class="panel notification-settings-panel" @submit.prevent="saveNotificationSettings">
       <h2>Recordatorios de reservas</h2><p>Los recordatorios se envían automáticamente al correo de cada estudiante con una clase confirmada.</p>
 

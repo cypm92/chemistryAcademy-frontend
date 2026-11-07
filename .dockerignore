@@ -2,3 +2,8 @@ node_modules
 dist
 .env
 
+
+# Exclude environment files and Git metadata at every depth.
+**/.env*
+!**/.env*.example
+**/.git
