@@ -5,9 +5,29 @@ import { api, errorMessage } from "../services/api";
 import { session } from "../services/session";
 import { classEndsByMadridCutoff, MADRID, madridInput, madridToUtc, canCancelBooking } from "../services/madridTime";
 import MaterialViewer from "../components/MaterialViewer.vue";
+import TeamsRecreate from "../components/TeamsRecreate.vue";
+import TeamsPatchReview from "../components/TeamsPatchReview.vue";
+
+function commentParts(comment: string, status: string) {
+  return comment.split(/(\s+)/).map(text => {
+    let href = '';
+    if (status === 'confirmed' && /^https?:\/\//i.test(text)) {
+      try {
+        const url = new URL(text);
+        const teams = url.protocol === 'https:' && url.hostname === 'teams.microsoft.com' && !url.port;
+        const simulated = import.meta.env.DEV && import.meta.env.VITE_MICROSOFT_SIMULATED === 'true' &&
+          ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
+          url.origin === window.location.origin && /^\/fake\/meeting\/[A-Za-z0-9-]+$/.test(url.pathname);
+        if (!url.username && !url.password && (teams || simulated)) href = text;
+      } catch { /* Keep unparseable text as text. */ }
+    }
+    return { text, href };
+  });
+}
 
 const classes = ref<AcademyClass[]>([]);
 const loading = ref(true);
+const classesStale = ref(true);
 const uploadingId = ref<number | null>(null);
 const selectedMaterial = ref<Material | null>(null);
 const editingClass = ref<AcademyClass | null>(null);
@@ -15,6 +35,17 @@ const error = ref("");
 const success = ref("");
 const openStatusId = ref<number | null>(null);
 const statusBusy = ref(false);
+const teamsBusy = ref<number[]>([]);
+async function retryTeams(item: AcademyClass) {
+  if (teamsBusy.value.includes(item.id)) return;
+  teamsBusy.value = [...teamsBusy.value, item.id];
+  error.value = '';
+  try {
+    await api.post(`/admin/classes/${item.id}/teams/retry`);
+    await load();
+  } catch { error.value = item.teams_action === 'delete' ? 'No se pudo reintentar la eliminación del evento de Teams.' : 'No se pudo reintentar la creación de la reunión de Teams.'; }
+  finally { teamsBusy.value = teamsBusy.value.filter(id => id !== item.id); }
+}
 function closeStatus(restoreFocus = false) {
   const id = openStatusId.value;
   openStatusId.value = null;
@@ -84,6 +115,21 @@ const subjects = [
   "Matemáticas Bachiller",
 ];
 const isAdmin = computed(() => session.user?.role === "admin");
+const unlinkedCount = ref(0);
+const unlinkedError = ref(false);
+let unlinkedRequest = 0;
+async function loadUnlinkedIncidents() {
+  if (!isAdmin.value) return;
+  const request = ++unlinkedRequest;
+  try {
+    const { data } = await api.get('/admin/teams/unlinked-incidents');
+    if (request !== unlinkedRequest) return;
+    unlinkedCount.value = data.count;
+    unlinkedError.value = false;
+  } catch {
+    if (request === unlinkedRequest) unlinkedError.value = true;
+  }
+}
 function classPersonKey(item: AcademyClass) {
   return item.user_id === null ? `guest:${item.user_email.trim().toLowerCase()}` : `user:${item.user_id}`;
 }
@@ -192,15 +238,37 @@ async function load() {
   loading.value = true;
   error.value = "";
   try {
-    const { data } = await api.get(
+    const classesRequest = api.get(
       isAdmin.value ? "/admin/classes" : "/classes",
     );
+    void loadUnlinkedIncidents();
+    const { data } = await classesRequest;
     classes.value = data;
+    classesStale.value = false;
   } catch (err) {
+    classesStale.value = true;
     error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   } finally {
     loading.value = false;
   }
+}
+async function recreateResult(conflict: boolean, id: number) {
+  success.value = '';
+  await load();
+  if (conflict) error.value = 'No se ha podido autorizar; comprueba el estado de la cuenta y que la clase siga confirmada, y vuelve a cargar los datos.';
+  else success.value = 'Se ha solicitado un nuevo intento automático de creación.';
+  if (classesStale.value) error.value += ' No se pudieron actualizar las clases; los datos mostrados pueden estar obsoletos. Actualiza las clases antes de volver a intentarlo.';
+  await nextTick();
+  (document.getElementById('class-card-' + id) || document.querySelector<HTMLElement>('.classes-search input'))?.focus();
+}
+async function patchReviewResult(conflict: boolean, id: number) {
+  success.value = '';
+  await load();
+  if (conflict) error.value = 'No puede resolverse si hay una operación aún en curso; vuelva a cargar o contacte con soporte.';
+  else success.value = 'La actualización se ha marcado como revisada.';
+  if (classesStale.value) error.value += ' No se pudieron actualizar las clases; los datos mostrados pueden estar obsoletos. Actualiza las clases antes de volver a intentarlo.';
+  await nextTick();
+  (document.getElementById('class-card-' + id) || document.querySelector<HTMLElement>('.classes-search input'))?.focus();
 }
 async function uploadAttachment(item: AcademyClass, event: Event) {
   const input = event.target as HTMLInputElement;
@@ -259,6 +327,7 @@ async function deleteClass(item: AcademyClass) {
     await api.delete(`/admin/classes/${item.id}`);
     classes.value = classes.value.filter((current) => current.id !== item.id);
     success.value = "Clase eliminada de la plataforma.";
+    void loadUnlinkedIncidents();
   } catch (err) {
     error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
@@ -420,8 +489,11 @@ onMounted(load);
 <template>
   <section class="page classes-page">
 
+    <p v-if="isAdmin && unlinkedCount > 0" class="alert" role="alert">Hay {{ unlinkedCount }} incidencias de reuniones asociadas a clases eliminadas. Revisa Outlook y contacta con soporte.</p>
+    <div v-if="isAdmin && unlinkedError" class="alert" role="alert">No se pudieron comprobar incidencias de reuniones. <button type="button" @click="loadUnlinkedIncidents">Reintentar</button></div>
     <p v-if="error" class="alert">{{ error }}</p>
     <p v-if="success" class="success-alert">{{ success }}</p>
+    <button v-if="classesStale && !loading" type="button" @click="load">Actualizar clases</button>
     <section class="class-filters">
       <label class="classes-search"
         ><span>⌕</span
@@ -528,6 +600,21 @@ onMounted(load);
                 ><template v-if="isAdmin"> · {{ item.user_email }}<template v-if="item.user_id === null"> · Invitado</template></template> ·
                 {{ formatDate(item.starts_at) }}
               </p>
+              <div v-if="isAdmin && (item.teams_status || item.teams_unresolved_attempts)" class="class-teams" role="status">
+                <span v-if="item.teams_status === 'needs_review' && item.teams_review_reason === 'patch_result_unknown'">No se ha podido confirmar la actualización de la reunión. Revisa el evento y su horario en Outlook; contacta con soporte si la incidencia continúa.</span>
+                <span v-else-if="item.teams_status === 'needs_review' && item.teams_review_reason === 'event_missing'">No se encuentra el evento en Microsoft. Comprueba el calendario y contacta con soporte antes de crear otro.</span>
+                <span v-else-if="item.teams_status === 'needs_review' && item.teams_review_reason === 'recreation_account_mismatch'">La cuenta de Microsoft no coincide con la autorizada para crear la reunión. Revisa la cuenta y contacta con soporte antes de continuar.</span>
+                <span v-else-if="item.teams_status === 'needs_review'">Resultado de creación incierto: puede que el evento ya exista. Revisa el calendario de Microsoft y contacta con soporte si necesitas intervención. Esta operación sigue pendiente de revisión; no crees otra reunión sin revisar el posible duplicado.</span>
+                <span v-else-if="item.teams_status === 'error'">{{ item.teams_action === 'delete' ? 'Error al eliminar el evento de Teams.' : 'Error al sincronizar la reunión de Teams.' }}</span>
+                <span v-else-if="item.teams_status === 'pending'">Reunión de Teams pendiente.</span>
+                <span v-else-if="item.teams_status === 'not_configured'">Microsoft Teams no está configurado.</span>
+                <span v-else-if="item.teams_status === 'ready' && item.teams_unresolved_attempts">La reunión principal de Teams está preparada, pero hay {{ item.teams_unresolved_attempts }} {{ item.teams_unresolved_attempts === 1 ? 'incidencia pendiente' : 'incidencias pendientes' }} de revisión. Examina Outlook por posibles duplicados.</span>
+                <span v-else-if="item.teams_status === 'ready'">Reunión de Teams preparada.</span>
+                <button v-if="item.teams_status === 'error'" type="button" :disabled="teamsBusy.includes(item.id)" @click="retryTeams(item)">{{ teamsBusy.includes(item.id) ? 'Reintentando…' : item.teams_action === 'delete' ? 'Reintentar eliminación' : 'Reintentar Teams' }}</button>
+                <span v-if="item.teams_unresolved_attempts && item.teams_status !== 'ready'">{{ item.teams_unresolved_attempts }} {{ item.teams_unresolved_attempts === 1 ? 'incidencia pendiente' : 'incidencias pendientes' }} de revisión. Examina Outlook por posibles duplicados.</span>
+                <TeamsRecreate v-if="item.teams_status === 'needs_review' && ['creation_result_unknown', 'event_missing'].includes(item.teams_review_reason || '')" :class-id="item.id" :revision="item.teams_revision" :disabled="classesStale || loading || item.status !== 'confirmed' || item.teams_action !== 'upsert'" @requested="recreateResult(false, item.id)" @conflict="recreateResult(true, item.id)" />
+                <TeamsPatchReview v-if="item.teams_status === 'needs_review' && item.teams_review_reason === 'patch_result_unknown'" :class-id="item.id" :revision="item.teams_revision" :status="item.status" :disabled="classesStale || loading || teamsBusy.includes(item.id)" @reviewed="patchReviewResult(false, item.id)" @conflict="patchReviewResult(true, item.id)" />
+              </div>
               <section class="class-materials">
                 <div class="class-materials-heading">
                   <b>Materiales de la clase</b
@@ -579,8 +666,8 @@ onMounted(load);
                   </article>
                 </div>
               </section>
-              <p v-if="item.admin_comment" class="class-comment">
-                <b>Información de la profesora:</b> {{ item.admin_comment }}
+              <p v-if="item.admin_comment" class="class-comment" style="white-space: pre-wrap; overflow-wrap: anywhere">
+                <b>Información de la profesora:</b> <template v-for="(part, index) in commentParts(item.admin_comment, item.status)" :key="index"><a v-if="part.href" :href="part.href" target="_blank" rel="noopener noreferrer">{{ part.text }}</a><template v-else>{{ part.text }}</template></template>
               </p>
               <button
                 v-if="!isAdmin && canCancel(item)"

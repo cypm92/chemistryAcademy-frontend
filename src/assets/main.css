@@ -197,3 +197,9 @@ button.class-status:focus-visible, .class-request-actions button:focus-visible, 
 .class-status-menu button:disabled { opacity: .5; cursor: wait; }
 .class-status-menu button:focus-visible { outline: 2px solid var(--brand-green); outline-offset: -2px; }
 @media (max-width: 700px) { .class-status-control { align-self: flex-end; } }
+
+.microsoft-panel { margin: 16px 0; }
+.microsoft-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.class-teams { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+.class-teams button { border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; background: var(--paper); color: var(--brand-green); font-weight: 700; cursor: pointer; }
+.class-teams button:disabled { opacity: .6; cursor: wait; }

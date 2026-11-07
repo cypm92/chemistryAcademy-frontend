@@ -77,6 +77,12 @@ export interface Booking {
 
 export interface AcademyClass {
   id: number
+  teams_action?: 'upsert' | 'delete' | null
+  teams_status?: 'not_configured' | 'pending' | 'ready' | 'error' | 'needs_review' | null
+  teams_review_reason?: 'creation_result_unknown' | 'patch_result_unknown' | 'event_missing' | 'recreation_account_mismatch' | null
+  teams_revision?: number | null
+  teams_unresolved_attempts?: number
+  teams_join_url?: string | null
   starts_at: string
   ends_at: string
   status: 'requested' | 'confirmed' | 'declined' | 'cancelled'
