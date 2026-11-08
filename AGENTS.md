@@ -21,3 +21,20 @@
 - No abras, imprimas, copies ni confirmes en Git archivos `.env`, credenciales, tokens ni secretos. No incluyas secretos en instrucciones ni informes.
 - No expongas controles ni datos exclusivos de administración en las vistas públicas o de alumnado.
 - El acceso a producción, la publicación de imágenes, los merges a `main` y los despliegues requieren autorización expresa del usuario.
+
+## Memoria del proyecto
+Las decisiones de producto y arquitectura de Chemistry Academy están en
+**`../02-DOCS/`**, un repositorio propio compartido por los tres componentes
+(`chemistryAcademy-docs`). Consúltalo antes de planear o implementar; no
+copies su contenido aquí, para que no existan dos versiones.
+
+- `../02-DOCS/índice.md` — inventario, mapa tecnológico y qué va en el brain.
+- `../02-DOCS/decisiones.md` — decisiones vigentes, con fuente y verificación.
+
+Cada decisión indica su estado de verificación: las marcadas como pendientes
+no son hechos comprobados. Al implementar una decisión, **cita su
+identificador** —`DEC-004`, por ejemplo— en el mensaje del commit.
+
+La metodología de trabajo —reparto de roles, planificación, pruebas y
+revisión— la aporta el perfil de Hermes que coordina el proyecto, no este
+archivo.
