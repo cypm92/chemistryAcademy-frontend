@@ -50,6 +50,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Construir imagen sin publicarla
         run: docker build --tag chemistry-academy-frontend:ci .
+      - name: Comprobar tipos MIME de la imagen
+        run: sh tests/production-mime.test.sh chemistry-academy-frontend:ci
 
   publish-container:
     name: Publicar imagen de producción en GHCR
