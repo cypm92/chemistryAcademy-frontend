@@ -203,3 +203,17 @@ button.class-status:focus-visible, .class-request-actions button:focus-visible, 
 .class-teams { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; color: var(--muted); font-size: 12px; }
 .class-teams button { border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; background: var(--paper); color: var(--brand-green); font-weight: 700; cursor: pointer; }
 .class-teams button:disabled { opacity: .6; cursor: wait; }
+
+.pdf-viewer { position: relative; display: block; width: 100%; height: 100%; min-height: 0; overflow: hidden; background: #17201f; --pdf-controls-height: 50px; }
+.pdf-controls { position: absolute; inset: 0 0 auto; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 10px; height: var(--pdf-controls-height); padding: 8px 12px; background: #102522; color: #fff; }
+.pdf-controls button { min-width: 36px; height: 34px; border: 1px solid #ffffff45; border-radius: 7px; background: transparent; color: #fff; font-size: 18px; cursor: pointer; }
+.pdf-controls button:disabled { opacity: .5; cursor: not-allowed; }
+.pdf-controls button:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 2px; }
+.pdf-controls span { min-width: 48px; text-align: center; font-size: 13px; font-variant-numeric: tabular-nums; }
+.pdf-scroll { position: absolute; inset: var(--pdf-controls-height) 0 0; width: 100%; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.pdf-viewer .pdfViewer { display: block; min-width: 100%; min-height: 100%; background: #17201f; --scale-factor: 1; }
+.pdf-viewer .pdfViewer .page { margin: 12px auto; border: 0; box-shadow: 0 4px 16px #0005; }
+.pdf-viewer .pdfViewer .page .textLayer { z-index: 1; }
+.pdf-status, .pdf-error { position: absolute; top: 50%; left: 50%; z-index: 2; max-width: min(420px, 90%); transform: translate(-50%, -50%); margin: 0; border-radius: 10px; padding: 12px 16px; background: #102522e8; color: #fff; text-align: center; }
+.pdf-viewer:fullscreen { width: 100vw; height: 100vh; background: #17201f; }
+@media(max-width:480px) { .pdf-viewer { --pdf-controls-height: 44px; } .pdf-controls { gap: 6px; padding: 6px; } .pdf-controls button { min-width: 32px; height: 32px; } }
