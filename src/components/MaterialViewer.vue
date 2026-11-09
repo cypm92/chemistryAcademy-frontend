@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import type { Material } from '../types'
 import { protectedBlobUrl } from '../services/api'
+import PdfDocumentViewer from './PdfDocumentViewer.vue'
 
 const props = defineProps<{ material: Material | null }>()
 const emit = defineEmits<{ close: [] }>()
@@ -9,6 +10,8 @@ const url = ref('')
 const loading = ref(false)
 const video = ref<HTMLVideoElement | null>(null)
 const videoPlayer = ref<HTMLElement | null>(null)
+const pdfDocumentViewer = ref<{ dispose: () => Promise<void> } | null>(null)
+const loadError = ref('')
 const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
@@ -54,19 +57,61 @@ async function toggleFullscreen() {
   else await videoPlayer.value.requestFullscreen()
 }
 
+let materialLoadGeneration = 0
+function onModalKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && props.material) {
+    event.preventDefault()
+    emit('close')
+  }
+}
+
 watch(() => props.material, async (material) => {
-  if (url.value) URL.revokeObjectURL(url.value)
+  if (material) window.addEventListener('keydown', onModalKeydown)
+  else window.removeEventListener('keydown', onModalKeydown)
+
+  const generation = ++materialLoadGeneration
+  const previousUrl = url.value
   url.value = ''
+  loadError.value = ''
   isPlaying.value = false
   currentTime.value = 0
   duration.value = 0
   playbackRate.value = 1
-  if (!material) return
-  loading.value = true
-  try { url.value = await protectedBlobUrl(`/materials/${material.id}/content`) }
-  finally { loading.value = false }
+  loading.value = Boolean(material)
+
+  if (pdfDocumentViewer.value) await pdfDocumentViewer.value.dispose()
+  await nextTick()
+  if (previousUrl) URL.revokeObjectURL(previousUrl)
+  if (generation !== materialLoadGeneration) return
+  if (!material) {
+    loading.value = false
+    return
+  }
+
+  try {
+    const nextUrl = await protectedBlobUrl(`/materials/${material.id}/content`)
+    if (generation !== materialLoadGeneration) {
+      URL.revokeObjectURL(nextUrl)
+      return
+    }
+    url.value = nextUrl
+  } catch {
+    if (generation === materialLoadGeneration) loadError.value = 'No se pudo cargar este material. Vuelve a intentarlo.'
+  } finally {
+    if (generation === materialLoadGeneration) loading.value = false
+  }
 }, { immediate: true })
-onBeforeUnmount(() => { if (url.value) URL.revokeObjectURL(url.value) })
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onModalKeydown)
+  materialLoadGeneration++
+  const currentUrl = url.value
+  const viewer = pdfDocumentViewer.value
+  if (viewer) {
+    void viewer.dispose().finally(() => { if (currentUrl) URL.revokeObjectURL(currentUrl) })
+  } else if (currentUrl) {
+    URL.revokeObjectURL(currentUrl)
+  }
+})
 </script>
 
 <template>
@@ -74,10 +119,11 @@ onBeforeUnmount(() => { if (url.value) URL.revokeObjectURL(url.value) })
     <div class="viewer-card">
       <div class="viewer-head">
         <div><span class="eyebrow">{{ material.kind }}</span><h2>{{ material.title }}</h2></div>
-        <button class="icon-button" @click="emit('close')">×</button>
+        <button class="icon-button" type="button" aria-label="Cerrar documento" @click="emit('close')">×</button>
       </div>
       <div class="viewer-body" @contextmenu.prevent>
-        <p v-if="loading">Preparando material…</p>
+        <p v-if="loading" role="status">Preparando material…</p>
+        <p v-else-if="loadError" role="alert">{{ loadError }}</p>
         <div v-else-if="material.kind === 'video'" ref="videoPlayer" class="video-player">
           <video ref="video" :src="url" controlsList="nodownload" disablePictureInPicture @click="togglePlayback"
             @loadedmetadata="duration = video?.duration || 0" @timeupdate="currentTime = video?.currentTime || 0"
@@ -102,7 +148,7 @@ onBeforeUnmount(() => { if (url.value) URL.revokeObjectURL(url.value) })
             <button type="button" class="video-control-button fullscreen-button" aria-label="Pantalla completa" title="Pantalla completa" @click="toggleFullscreen">⛶</button>
           </div>
         </div>
-        <iframe v-else :src="`${url}#toolbar=0&navpanes=0`" title="Documento PDF" />
+        <PdfDocumentViewer v-else ref="pdfDocumentViewer" :src="url" />
       </div>
       <p class="viewer-note">Contenido personal. El acceso queda sujeto a tu periodo activo.</p>
     </div>
