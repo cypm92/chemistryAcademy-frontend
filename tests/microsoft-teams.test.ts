@@ -45,6 +45,14 @@ it('permite el OAuth simulado local solo con activación explícita', async () =
   expect(w.text()).not.toContain('No se pudo iniciar la conexión')
   w.unmount(); vi.unstubAllEnvs()
 })
+it('permite simulación explícita en build local servido por Nginx', async () => {
+  vi.stubEnv('DEV', false)
+  vi.stubEnv('VITE_MICROSOFT_SIMULATED', 'true')
+  vi.stubEnv('VITE_LOCAL_SANDBOX_BUILD', 'true')
+  const w = mount(MicrosoftIntegration); await flushPromises()
+  expect(w.text()).toContain('Simulación local de Microsoft activada')
+  w.unmount()
+})
 it.each([
   ['flag desactivado', false, true, '/fake/12345678-1234-1234-1234-123456789abc/oauth2/v2.0/authorize'],
   ['build de producción', true, false, '/fake/12345678-1234-1234-1234-123456789abc/oauth2/v2.0/authorize'],
@@ -61,6 +69,7 @@ it.each([
 })
 it('rechaza simulación en un host público aunque el flag esté activo', async () => {
   vi.stubEnv('VITE_MICROSOFT_SIMULATED', 'true')
+  vi.stubEnv('VITE_LOCAL_SANDBOX_BUILD', 'true')
   const realWindow = window
   const location = new URL('http://public.example/admin')
   vi.stubGlobal('window', new Proxy(realWindow, { get(target, key) { return key === 'location' ? location : Reflect.get(target, key, target) } }))

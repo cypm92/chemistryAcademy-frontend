@@ -15,7 +15,7 @@ function commentParts(comment: string, status: string) {
       try {
         const url = new URL(text);
         const teams = url.protocol === 'https:' && url.hostname === 'teams.microsoft.com' && !url.port;
-        const simulated = import.meta.env.DEV && import.meta.env.VITE_MICROSOFT_SIMULATED === 'true' &&
+        const simulated = (import.meta.env.DEV || import.meta.env.VITE_LOCAL_SANDBOX_BUILD === 'true') && import.meta.env.VITE_MICROSOFT_SIMULATED === 'true' &&
           ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname) &&
           url.origin === window.location.origin && /^\/fake\/meeting\/[A-Za-z0-9-]+$/.test(url.pathname);
         if (!url.username && !url.password && (teams || simulated)) href = text;
