@@ -1,6 +1,8 @@
 FROM node:22-alpine@sha256:b6f26b36c8ff49624cfdac716b8ea1138d606df02586a77d364bb5536a634f85 AS build
 
 WORKDIR /app
+ARG VITE_LOCAL_SANDBOX_BUILD=false
+ARG VITE_MICROSOFT_SIMULATED=false
 COPY package.json pnpm-lock.yaml ./
 RUN corepack enable && pnpm install --frozen-lockfile --ignore-scripts
 COPY . .

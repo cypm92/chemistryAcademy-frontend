@@ -11,7 +11,7 @@ async function refresh() {
   const { data } = await api.get('/admin/integrations/microsoft')
   status.value = data
 }
-const simulationEnabled = import.meta.env.DEV && import.meta.env.VITE_MICROSOFT_SIMULATED === 'true' &&
+const simulationEnabled = (import.meta.env.DEV || import.meta.env.VITE_LOCAL_SANDBOX_BUILD === 'true') && import.meta.env.VITE_MICROSOFT_SIMULATED === 'true' &&
   window.location.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(window.location.hostname)
 async function connect() {
   busy.value = true; error.value = ''; message.value = ''
