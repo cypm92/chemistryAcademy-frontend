@@ -14,7 +14,6 @@ type ResourceResponse = { exams: Exam[]; forms: Resource[]; videos: Resource[] }
 
 const subjectOptions: { key: Subject; label: string }[] = [
   { key: 'quimica', label: 'Química' },
-  { key: 'organica', label: 'Química Orgánica' },
   { key: 'fisica', label: 'Física' },
   { key: 'matematicas', label: 'Matemáticas II' },
 ]

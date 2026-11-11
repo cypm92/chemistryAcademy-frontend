@@ -31,3 +31,16 @@ describe('solicitudes en notificaciones', () => {
     wrapper.unmount()
   })
 })
+
+it('impide seleccionar orgánica para exámenes sin retirarla de formularios y vídeos', async () => {
+  vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/admin/public-resources' ? { exams: [], forms: [], videos: [], documents: [] } : url === '/admin/notification-settings' ? { reminder_interval_minutes: 1440 } : [] }) as any)
+  const wrapper = mount(AdminView, { global: { stubs: { StudentsView: true, FolderTreePicker: true } } })
+  await flushPromises()
+  await wrapper.findAll('[role="tab"]').find(tab => tab.text() === 'Recursos públicos')!.trigger('click')
+  const selects = wrapper.findAll('.resource-admin-grid select').filter(select => select.text().includes('Química'))
+  expect(selects).toHaveLength(3)
+  expect(selects[0].findAll('option').map(option => option.attributes('value'))).toEqual(['quimica', 'fisica', 'matematicas'])
+  expect(selects[1].text()).toContain('Química orgánica')
+  expect(selects[2].text()).toContain('Química orgánica')
+  wrapper.unmount()
+})
