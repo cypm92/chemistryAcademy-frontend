@@ -130,6 +130,7 @@
 .folder-parent-placeholder{grid-column:1;display:block;width:22px;height:30px;padding:0}
 .folder-move-card{max-height:90vh;overflow-y:auto}
 .folder-move-card .folder-parent-options{position:static;margin-top:7px}
+.admin-page-folders .admin-tab-grid > form .folder-parent-options{position:static;margin-top:7px}
 
 /* Indicadores de asignaturas de la portada más visibles. */
 .bc-subjects span{display:inline-flex;align-items:center}

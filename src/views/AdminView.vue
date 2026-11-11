@@ -14,7 +14,7 @@ const notice = ref('')
 const error = ref('')
 const newUser = ref({ name: '', email: '', password: '', role: 'guest' })
 const upload = ref({ title: '', description: '', tags: '', file: null as File | null })
-const folderSelection = ref('')
+const folderSelection = ref<number | null>(null)
 const folderForm = ref<{ name: string; parent_id: number | null }>({ name: '', parent_id: null })
 const editingFolderId = ref<number | null>(null)
 const folderNameInput = ref<HTMLInputElement | null>(null)
@@ -75,8 +75,8 @@ async function load() {
   const [u, m, f, t, contacts] = await Promise.all([api.get('/admin/users'), api.get('/admin/materials'), api.get('/admin/folders'), api.get('/admin/tags'), api.get('/admin/contact-requests')])
   users.value = u.data; materials.value = m.data; folders.value = f.data; tags.value = t.data
   contactRequests.value = contacts.data
-  if (!folderSelection.value || !folders.value.some(folder => String(folder.id) === folderSelection.value)) {
-    folderSelection.value = String(folders.value.find(folder => folder.name === 'Sin clasificar' && folder.parent_id === null)?.id || '')
+  if (folderSelection.value === null || !folders.value.some(folder => folder.id === folderSelection.value)) {
+    folderSelection.value = folders.value.find(folder => folder.name === 'Sin clasificar' && folder.parent_id === null)?.id ?? null
   }
   if (!guests.value.some((user) => user.id === grant.value.user_id)) grant.value.user_id = guests.value[0]?.id || 0
   if (!grant.value.material_id && materials.value[0]) grant.value.material_id = materials.value[0].id
@@ -142,10 +142,10 @@ function uploadFile() {
   const file = upload.value.file
   if (!file) return
   return act(async () => {
-    if (!folderSelection.value) throw new Error('Selecciona una carpeta')
+    if (folderSelection.value === null || !folders.value.some(folder => folder.id === folderSelection.value)) throw new Error('Selecciona una carpeta')
     const body = new FormData()
     body.append('title', upload.value.title); body.append('description', upload.value.description)
-    body.append('folder_id', folderSelection.value); body.append('tags', upload.value.tags); body.append('file', file)
+    body.append('folder_id', String(folderSelection.value)); body.append('tags', upload.value.tags); body.append('file', file)
     await api.post('/admin/materials', body)
   }, 'Material subido correctamente.')
 }
@@ -218,7 +218,7 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
     <div class="admin-tabs" role="tablist" aria-label="Secciones de administración"><button :class="{ active: activeSection === 'students' }" type="button" role="tab" :aria-selected="activeSection === 'students'" @click="activeSection = 'students'">Gestión de alumnos</button><button :class="{ active: activeSection === 'folders' }" type="button" role="tab" :aria-selected="activeSection === 'folders'" @click="activeSection = 'folders'">Gestión de carpetas</button><button :class="{ active: activeSection === 'resources' }" type="button" role="tab" :aria-selected="activeSection === 'resources'" @click="activeSection = 'resources'">Recursos públicos</button><button :class="{ active: activeSection === 'settings' }" type="button" role="tab" :aria-selected="activeSection === 'settings'" @click="activeSection = 'settings'">Notificaciones</button></div>
     <div class="admin-tab-grid">
       <form v-if="activeSection === 'students'" class="panel" @submit.prevent="createUser"><h2>Crear estudiante</h2><p>También pueden registrarse por sí mismos como invitados.</p><label>Nombre<input v-model="newUser.name" required minlength="2" /></label><label>Email<input v-model="newUser.email" type="email" required /></label><label>Contraseña temporal<input v-model="newUser.password" type="password" required minlength="8" /></label><button class="primary">Crear usuario</button></form>
-      <form v-if="activeSection === 'folders'" class="panel" @submit.prevent="uploadFile"><h2>Subir material</h2><p>PDF, MP4, WebM o MOV. Elige una carpeta creada previamente.</p><label>Título<input v-model="upload.title" required /></label><label>Carpeta<select v-model="folderSelection" required><option value="" disabled>Selecciona una carpeta</option><option v-for="folder in folders" :key="folder.id" :value="String(folder.id)">{{ folder.path }}</option></select></label><label>Etiquetas<input v-model="upload.tags" placeholder="Ej. ESO, FORMULACIÓN, EXAMEN" @input="upload.tags = upload.tags.toUpperCase()" /><small>Sepáralas con comas. Se guardan siempre en mayúsculas.</small></label><label>Descripción<textarea v-model="upload.description" rows="3" /></label><label class="file-input">Archivo<input type="file" accept=".pdf,video/*" required @change="upload.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label><button class="primary">Subir material</button></form>
+      <form v-if="activeSection === 'folders'" class="panel" @submit.prevent="uploadFile"><h2>Subir material</h2><p>PDF, MP4, WebM o MOV. Elige una carpeta creada previamente.</p><label>Título<input v-model="upload.title" required /></label><label>Carpeta<FolderTreePicker v-model="folderSelection" :folders="folders" :allow-root="false" /></label><label>Etiquetas<input v-model="upload.tags" placeholder="Ej. ESO, FORMULACIÓN, EXAMEN" @input="upload.tags = upload.tags.toUpperCase()" /><small>Sepáralas con comas. Se guardan siempre en mayúsculas.</small></label><label>Descripción<textarea v-model="upload.description" rows="3" /></label><label class="file-input">Archivo<input type="file" accept=".pdf,video/*" required @change="upload.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label><button class="primary">Subir material</button></form>
       <form v-if="activeSection === 'students'" class="panel" @submit.prevent="grantAccess"><h2>Compartir con un estudiante</h2><p>Comparte un archivo concreto o todos los materiales que lleven una o varias etiquetas.</p><label>Estudiante<select v-model="grant.user_id" required><option v-for="u in guests" :key="u.id" :value="u.id">{{ u.name }} · {{ u.email }}</option></select></label><label>Compartir<select v-model="grant.scope"><option value="material">Un archivo</option><option value="tag">Una o varias etiquetas</option></select></label><label v-if="grant.scope === 'material'">Material<select v-model="grant.material_id" required><option v-for="m in materials" :key="m.id" :value="m.id">{{ m.title }}</option></select></label><fieldset v-else class="tag-selector"><legend>Etiquetas</legend><p v-if="!tags.length">No hay etiquetas todavía.</p><label v-for="tag in tags" :key="tag.id" class="check"><input v-model="grant.tag_ids" type="checkbox" :value="tag.id" /> {{ tag.name }}</label><small>Incluye los archivos actuales y futuros con cualquiera de las etiquetas seleccionadas.</small></fieldset><label>Duración<select v-model="grant.duration"><option value="week">Una semana</option><option value="month">Un mes</option><option value="custom">Fecha concreta</option></select></label><label v-if="grant.duration === 'custom'">Fin<input v-model="grant.expires_at" type="datetime-local" required /></label><label class="check"><input v-model="grant.can_download" type="checkbox" /> Permitir descarga a este usuario</label><button class="primary">Guardar acceso</button></form>
       <section v-if="activeSection === 'folders'" class="panel folders-admin-panel">
         <h2>{{ editingFolderId ? 'Editar carpeta' : 'Crear carpeta' }}</h2><p>{{ editingFolder ? `Cambia el nombre o la ubicación de «${editingFolder.path}».` : 'Añade una carpeta raíz o una subcarpeta a la biblioteca.' }}</p>
