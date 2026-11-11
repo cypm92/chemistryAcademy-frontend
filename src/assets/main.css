@@ -217,3 +217,13 @@ button.class-status:focus-visible, .class-request-actions button:focus-visible, 
 .pdf-status, .pdf-error { position: absolute; top: 50%; left: 50%; z-index: 2; max-width: min(420px, 90%); transform: translate(-50%, -50%); margin: 0; border-radius: 10px; padding: 12px 16px; background: #102522e8; color: #fff; text-align: center; }
 .pdf-viewer:fullscreen { width: 100vw; height: 100vh; background: #17201f; }
 @media(max-width:480px) { .pdf-viewer { --pdf-controls-height: 44px; } .pdf-controls { gap: 6px; padding: 6px; } .pdf-controls button { min-width: 32px; height: 32px; } }
+
+/* Library folder actions occupy a separate, consistent column. */
+.file-sidebar .folder-nav-item { display:grid;grid-template-columns:20px minmax(0,1fr) minmax(24px,auto) 12px;padding-right:38px }
+.file-sidebar .folder-nav-count { margin:0;text-align:center;font-variant-numeric:tabular-nums }
+.file-sidebar .folder-nav-toggle { width:12px;margin:0;text-align:center }
+.file-sidebar .folder-nav-color { top:4px;right:4px;width:32px;height:32px;border-radius:8px;background:transparent;box-shadow:none;color:var(--muted) }
+.file-sidebar .folder-nav-color svg { width:15px;height:15px }
+.file-sidebar .folder-nav-color:hover { transform:none;background:#e5eee8;color:var(--brand-green) }
+.file-sidebar .folder-nav-color:focus-visible { outline:2px solid var(--brand-green);outline-offset:1px }
+@media(min-width:901px) { .file-manager { grid-template-columns:300px minmax(0,1fr) } }
