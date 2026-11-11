@@ -28,6 +28,7 @@ const publicExam = ref({ title: '', description: '', subject: 'quimica', communi
 const publicDocument = ref({ title: '', description: '', subject: 'quimica', file: null as File | null })
 const publicVideo = ref({ title: '', description: '', subject: 'quimica', url: '' })
 const publicSubjects = [{ value: 'quimica', label: 'Química' }, { value: 'organica', label: 'Química orgánica' }, { value: 'fisica', label: 'Física' }, { value: 'matematicas', label: 'Matemáticas' }]
+const publicExamSubjects = publicSubjects.filter(subject => subject.value !== 'organica')
 const publicCommunities = ['Andalucía', 'Aragón', 'Asturias', 'Baleares', 'Canarias', 'Cantabria', 'Castilla-La Mancha', 'Castilla y León', 'Cataluña', 'C. Valenciana', 'Extremadura', 'Galicia', 'La Rioja', 'Madrid', 'Murcia', 'Navarra', 'País Vasco']
 const resourcesLoading = ref(false)
 const resourceBusy = ref(false)
@@ -238,7 +239,7 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
       <form class="panel" @submit.prevent="uploadPublicExam">
         <h2>Subir examen PAU</h2><p>El examen aparecerá en la pestaña Recursos, visible antes de iniciar sesión. Máximo 20 MB.</p>
         <label>Título<input v-model="publicExam.title" required maxlength="180" /></label>
-        <label>Asignatura<select v-model="publicExam.subject"><option v-for="subject in publicSubjects" :key="subject.value" :value="subject.value">{{ subject.label }}</option></select></label>
+        <label>Asignatura<select v-model="publicExam.subject"><option v-for="subject in publicExamSubjects" :key="subject.value" :value="subject.value">{{ subject.label }}</option></select></label>
         <label>Comunidad<select v-model="publicExam.community" required><option v-for="community in publicCommunities" :key="community" :value="community">{{ community }}</option></select></label><label>Año<input v-model.number="publicExam.exam_year" type="number" min="2000" max="2100" required /></label><label>Tipo<select v-model="publicExam.exam_part"><option value="statement">Enunciado</option><option value="solutions">Soluciones</option></select></label><label>Descripción<textarea v-model="publicExam.description" rows="3" maxlength="5000" /></label>
         <label>Archivo PDF<input type="file" accept="application/pdf,.pdf" required @change="publicExam.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label>
         <button class="primary" :disabled="resourceBusy">{{ resourceBusy ? 'Guardando…' : 'Subir PDF' }}</button>
