@@ -10,11 +10,13 @@ const fixtures = vi.hoisted(() => ({
     { id: 3, name: 'Orgánica', path: 'Química / Orgánica', parent_id: 2, color: null, effective_color: null },
   ] as Array<{ id: number; name: string; path: string; parent_id: number | null; color: null; effective_color: null }>,
   post: vi.fn(),
+  delete: vi.fn(),
 }))
 vi.mock('../src/services/api', () => ({
   api: {
     get: vi.fn((path: string) => Promise.resolve({ data: path === '/admin/folders' ? fixtures.folders : path === '/admin/tags' ? [{ id: 1, name: 'QUIMICA' }, { id: 2, name: 'BIOLOGIA' }] : path === '/admin/notification-settings' ? { reminder_interval_minutes: 1440 } : path === '/admin/public-resources' ? { exams: [], forms: [], videos: [], documents: [] } : [] })),
     post: fixtures.post,
+    delete: fixtures.delete,
   },
   apiUrl: (path: string) => path,
   errorMessage: (error: Error) => error.message,
@@ -33,11 +35,23 @@ async function openUpload() {
 }
 
 describe('selección de carpeta al subir material', () => {
-  beforeEach(() => { fixtures.post.mockReset(); fixtures.post.mockResolvedValue({ data: {} }); fixtures.folders = [
+  beforeEach(() => { fixtures.post.mockReset(); fixtures.post.mockResolvedValue({ data: {} }); fixtures.delete.mockReset(); fixtures.delete.mockResolvedValue({}); fixtures.folders = [
     { id: 1, name: 'Sin clasificar', path: 'Sin clasificar', parent_id: null, color: null, effective_color: null },
     { id: 2, name: 'Química', path: 'Química', parent_id: null, color: null, effective_color: null },
     { id: 3, name: 'Orgánica', path: 'Química / Orgánica', parent_id: 2, color: null, effective_color: null },
   ] })
+
+  it('confirma antes de eliminar globalmente una etiqueta desde subida', async () => {
+    const { form, wrapper } = await openUpload()
+    await form.get('button[aria-label="Mostrar etiquetas existentes"]').trigger('click')
+    await form.get('button[aria-label="Eliminar etiqueta BIOLOGIA"]').trigger('click')
+    expect(fixtures.delete).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('permisos')
+    await wrapper.get('button[data-confirm-delete-tag]').trigger('click')
+    await flushPromises()
+    expect(fixtures.delete).toHaveBeenCalledWith('/admin/tags/2')
+    expect(form.find('button[aria-label="Eliminar etiqueta BIOLOGIA"]').exists()).toBe(false)
+  })
 
   it('selecciona etiquetas existentes y nuevas y las envía sin duplicados', async () => {
     const { form } = await openUpload()

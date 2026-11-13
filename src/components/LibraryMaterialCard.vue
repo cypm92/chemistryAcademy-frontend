@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { api, errorMessage, protectedBlobUrl } from '../services/api'
 import { session } from '../services/session'
 import type { Material } from '../types'
@@ -15,6 +15,7 @@ const emit = defineEmits<{
 }>()
 const editingGrant = ref<number | null>(null)
 const editExpiry = ref<Record<number, string>>({})
+const sharing = computed(() => props.item.sharing ?? (props.item.grants || []).map(grant => ({ user: grant.user, direct: grant, tags: [] })))
 
 function formatSize(bytes: number) { return `${(bytes / 1024 / 1024).toFixed(1)} MB` }
 function expiry(value?: string) {
@@ -38,7 +39,7 @@ async function saveGrant(grantId: number) {
   } catch (e) { emit('error', errorMessage(e)) }
 }
 async function removeGrant(grantId: number, studentName: string) {
-  if (!window.confirm(`¿Retirar el acceso de ${studentName} a este archivo?`)) return
+  if (!window.confirm(`¿Retirar el acceso directo de ${studentName} a este archivo? Puede conservar acceso mediante etiquetas.`)) return
   try { await api.delete(`/admin/grants/${grantId}`); emit('notice', `Acceso de ${studentName} eliminado.`); emit('changed') }
   catch (e) { emit('error', errorMessage(e)) }
 }
@@ -64,15 +65,16 @@ async function toggleFavorite() {
       <h3>{{ item.title }}</h3><p>{{ item.description || 'Material de estudio de la academia.' }}</p>
       <div v-if="item.tags?.length" class="material-tags"><span v-for="tag in item.tags" :key="tag.id">{{ tag.name }}</span></div>
       <div v-if="session.user?.role === 'admin'" class="sharing">
-        <div class="sharing-title"><b>Compartido con</b><span>{{ item.grants?.length || 0 }} {{ item.grants?.length === 1 ? 'alumno' : 'alumnos' }}</span></div>
-        <div v-if="item.grants?.length" class="share-list">
-          <div v-for="grant in item.grants" :key="grant.id" class="share-row">
-            <div class="student-avatar">{{ grant.user.name.slice(0, 1).toUpperCase() }}</div>
-            <div class="share-person"><b>{{ grant.user.name }}</b><small>{{ grant.user.email }}</small>
-              <template v-if="editingGrant === grant.id"><input v-model="editExpiry[grant.id]" class="date-editor" type="datetime-local" /><div class="edit-actions"><button class="text-action" @click="saveGrant(grant.id)">Guardar</button><button class="text-action muted" @click="editingGrant = null">Cancelar</button></div></template>
-              <small v-else>Caduca {{ new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(grant.expires_at)) }}</small>
+        <div class="sharing-title"><b>Compartido con</b><span>{{ sharing.length }} {{ sharing.length === 1 ? 'alumno' : 'alumnos' }}</span></div>
+        <div v-if="sharing.length" class="share-list">
+          <div v-for="entry in sharing" :key="entry.user.id" class="share-row">
+            <div class="student-avatar">{{ entry.user.name.slice(0, 1).toUpperCase() }}</div>
+            <div class="share-person"><b>{{ entry.user.name }}</b><small>{{ entry.user.email }}</small>
+              <small>{{ [entry.direct ? 'Directo' : '', ...entry.tags.map(tag => `Etiqueta: ${tag.name}`)].filter(Boolean).join(' · ') }}</small>
+              <template v-if="entry.direct && editingGrant === entry.direct.id"><input v-model="editExpiry[entry.direct.id]" class="date-editor" type="datetime-local" /><div class="edit-actions"><button class="text-action" @click="saveGrant(entry.direct.id)">Guardar</button><button class="text-action muted" @click="editingGrant = null">Cancelar</button></div></template>
+              <small v-else-if="entry.direct">Caduca acceso directo {{ new Intl.DateTimeFormat('es', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(entry.direct.expires_at)) }}</small>
             </div>
-            <div class="share-actions"><button class="edit-button" title="Editar caducidad" @click="beginEdit(grant.id, grant.expires_at)">Editar</button><button class="remove-button" title="Retirar acceso" @click="removeGrant(grant.id, grant.user.name)">×</button></div>
+            <div v-if="entry.direct" class="share-actions"><button class="edit-button" title="Editar caducidad del acceso directo" @click="beginEdit(entry.direct.id, entry.direct.expires_at)">Editar</button><button class="remove-button" title="Retirar acceso directo" @click="removeGrant(entry.direct.id, entry.user.name)">×</button></div>
           </div>
         </div>
         <p v-else class="not-shared">Todavía no está compartido con ningún alumno.</p>

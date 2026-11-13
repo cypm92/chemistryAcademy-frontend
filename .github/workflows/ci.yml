@@ -35,7 +35,7 @@ jobs:
             TZ="$zone" node --experimental-strip-types --test tests/madridTime.test.ts tests/guest-bookings.test.mjs tests/calendar-rules.test.ts
           done
       - name: Comprobar componentes, Teams y visor PDF
-        run: corepack pnpm@10.17.0 exec vitest run tests/availability.test.ts tests/admin-notifications.test.ts tests/cutoff.test.ts tests/class-management.test.ts tests/microsoft-teams.test.ts tests/teams-recreate.test.ts tests/teams-patch-review.test.ts tests/class-teams-link.test.ts tests/teams-unlinked-incidents.test.ts tests/pdfjs-viewer.test.ts tests/resources-pau.test.ts tests/library-folder-tree.test.ts tests/admin-upload-folders.test.ts tests/library-material-edit.test.ts
+        run: corepack pnpm@10.17.0 exec vitest run tests/availability.test.ts tests/admin-notifications.test.ts tests/cutoff.test.ts tests/class-management.test.ts tests/microsoft-teams.test.ts tests/teams-recreate.test.ts tests/teams-patch-review.test.ts tests/class-teams-link.test.ts tests/teams-unlinked-incidents.test.ts tests/pdfjs-viewer.test.ts tests/resources-pau.test.ts tests/library-folder-tree.test.ts tests/admin-upload-folders.test.ts tests/library-material-edit.test.ts tests/tag-delete.test.ts tests/sharing-sources.test.ts tests/student-sharing-sources.test.ts
       - name: Comprobar tipos
         run: corepack pnpm@10.17.0 type-check
       - name: Generar aplicación de producción

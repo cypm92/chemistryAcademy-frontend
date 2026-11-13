@@ -183,7 +183,7 @@ onMounted(async () => { try { await loadMaterials() } catch (e) { error.value = 
     </div>
     <div v-else class="empty"><b>Aún no tienes materiales activos.</b><p>Tu profesora te dará acceso cuando estén preparados.</p></div>
     <MaterialViewer :material="selected" @close="selected = null" />
-    <MaterialEditModal v-if="editingMaterial && session.user?.role === 'admin'" :item="editingMaterial" @close="closeEditMaterial" @saved="materialEdited" />
+    <MaterialEditModal v-if="editingMaterial && session.user?.role === 'admin'" :item="editingMaterial" @close="closeEditMaterial" @saved="materialEdited" @tag-deleted="reloadMaterials" />
     <div v-if="movingMaterial" class="modal folder-color-modal" role="dialog" aria-modal="true" aria-label="Mover material" @click.self="movingMaterial = null">
       <form class="folder-color-card folder-move-card" @submit.prevent="saveMoveMaterial">
         <header><div><p class="eyebrow">UBICACIÓN DEL MATERIAL</p><h2>Mover material</h2><small>{{ movingMaterial.title }}</small></div><button class="icon-button" type="button" aria-label="Cerrar" @click="movingMaterial = null">×</button></header>
