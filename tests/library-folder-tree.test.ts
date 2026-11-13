@@ -1,6 +1,9 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+// Tests run in Node; the app tsconfig intentionally excludes Node types.
+// @ts-expect-error Node types are not part of the browser tsconfig.
+import { readFileSync } from 'node:fs'
 import LibraryFolderTree, { type LibraryFolderNode } from '../src/components/LibraryFolderTree.vue'
 
 const child: LibraryFolderNode = { id: 2, name: 'Orgánica', path: 'Química / Orgánica', parentId: 1, ownColor: null, materials: [], children: [], materialCount: 12, color: '#123456' }
@@ -8,6 +11,11 @@ const folder: LibraryFolderNode = { id: 1, name: 'Química', path: 'Química', p
 const unclassified: LibraryFolderNode = { id: 3, name: 'Sin clasificar', path: 'Sin clasificar', parentId: null, ownColor: null, materials: [], children: [], materialCount: 0, color: null }
 
 describe('navegación de carpetas de biblioteca', () => {
+  it('limita la cuadrícula y muestra una columna de subcarpetas en móvil', () => {
+    const css = readFileSync('src/assets/main.css', 'utf8') as string
+    expect(/@media\s*\(max-width:\s*620px\)\s*\{[^}]*\.file-manager\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/s.test(css)).toBe(true)
+    expect(/@media\s*\(max-width:\s*620px\)[\s\S]*?\.folder-tiles\s*\{\s*grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(css)).toBe(true)
+  })
   it('muestra un lápiz accesible para editar sin seleccionar la carpeta', async () => {
     const wrapper = mount(LibraryFolderTree, { props: { nodes: [folder], selectedPath: '', expandedPaths: [], admin: true } })
     const edit = wrapper.get('button[aria-label="Editar color de Química"]')

@@ -228,3 +228,12 @@ button.class-status:focus-visible, .class-request-actions button:focus-visible, 
 .file-sidebar .folder-nav-color:hover { transform:none;background:#e5eee8;color:var(--brand-green) }
 .file-sidebar .folder-nav-color:focus-visible { outline:2px solid var(--brand-green);outline-offset:1px }
 @media(min-width:901px) { .file-manager { grid-template-columns:300px minmax(0,1fr) } }
+
+/* Evitar que las subcarpetas desborden el panel oculto en pantallas pequeñas. */
+@media (max-width:620px) {
+  .file-manager { grid-template-columns:minmax(0,1fr) }
+  .file-sidebar, .file-workspace { min-width:0 }
+  .folder-tiles { grid-template-columns:minmax(0,1fr) }
+  .folder-tile, .folder-tile-open { min-width:0 }
+  .folder-tile b { overflow-wrap:anywhere }
+}
