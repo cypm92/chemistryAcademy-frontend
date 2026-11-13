@@ -23,10 +23,10 @@ function isOpen(node: LibraryFolderNode) { return props.expandedPaths.includes(n
   <ul class="folder-nav-list" :style="{ '--folder-depth': props.depth > 0 ? 1 : 0 }">
     <li v-for="node in nodes" :key="node.path">
       <button :class="['folder-nav-item', { active: selectedPath === node.path }]" :style="{ '--folder-color': node.color || 'var(--brand-green)' }" :aria-expanded="node.children.length ? isOpen(node) : undefined" :title="node.path" @click="emit('select', node)">
-        <span class="folder-nav-icon">⌑</span><span>{{ node.name }}</span><small>{{ node.materialCount }}</small>
-        <span v-if="node.children.length" class="folder-nav-toggle">{{ isOpen(node) ? '⌄' : '›' }}</span>
+        <span class="folder-nav-icon">⌑</span><span>{{ node.name }}</span><small class="folder-nav-count">{{ node.materialCount }}</small>
+        <span class="folder-nav-toggle" aria-hidden="true">{{ node.children.length ? (isOpen(node) ? '⌄' : '›') : '' }}</span>
       </button>
-      <button v-if="admin && node.id && !(node.name === 'Sin clasificar' && node.parentId === null)" class="folder-nav-color" type="button" :aria-label="`Editar color de ${node.name}`" title="Editar color" :style="{ '--folder-color': node.color || 'var(--brand-green)' }" @click.stop="emit('editColor', node)"><span></span></button>
+      <button v-if="admin && node.id && !(node.name === 'Sin clasificar' && node.parentId === null)" class="folder-nav-color" type="button" :aria-label="`Editar color de ${node.name}`" title="Editar color" @click.stop="emit('editColor', node)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z" /></svg></button>
       <LibraryFolderTree v-if="node.children.length && isOpen(node)" :nodes="node.children" :selected-path="selectedPath" :expanded-paths="expandedPaths"
         :admin="admin" :depth="props.depth + 1" @select="emit('select', $event)" @edit-color="emit('editColor', $event)" />
     </li>

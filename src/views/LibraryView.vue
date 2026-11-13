@@ -4,6 +4,7 @@ import MaterialViewer from '../components/MaterialViewer.vue'
 import LibraryFolderTree, { type LibraryFolderNode } from '../components/LibraryFolderTree.vue'
 import LibraryMaterialCard from '../components/LibraryMaterialCard.vue'
 import FolderTreePicker from '../components/FolderTreePicker.vue'
+import MaterialEditModal from '../components/MaterialEditModal.vue'
 import { api, errorMessage } from '../services/api'
 import { session } from '../services/session'
 import type { Folder, Material } from '../types'
@@ -22,6 +23,22 @@ const colorFolder = ref<LibraryFolderNode | null>(null)
 const colorForm = ref({ useOwnColor: true, color: '#1D6B4F' })
 const savingColor = ref(false)
 const movingMaterial = ref<Material | null>(null)
+const editingMaterial = ref<Material | null>(null)
+let editOrigin: HTMLElement | null = null
+function openEditMaterial(material: Material) {
+  if (session.user?.role !== 'admin') return
+  editOrigin = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  editingMaterial.value = material
+}
+function closeEditMaterial() {
+  editingMaterial.value = null
+  editOrigin?.focus()
+}
+function materialEdited(material: Material) {
+  materials.value = materials.value.map(item => item.id === material.id ? { ...item, title: material.title, tags: material.tags } : item)
+  notice.value = 'Material actualizado.'
+  closeEditMaterial()
+}
 const moveTargetId = ref<number | null>(null)
 const savingMove = ref(false)
 const moveError = ref('')
@@ -161,11 +178,12 @@ onMounted(async () => { try { await loadMaterials() } catch (e) { error.value = 
         <div class="workspace-top"><div><div class="breadcrumbs"><button v-for="(crumb, index) in breadcrumbs" :key="index" @click="selectFolder(breadcrumbs.slice(0, index + 1).join(' / '))">{{ crumb }}</button></div><h1>{{ activeFolder.name }}</h1><p>{{ activeFolder.materialCount }} {{ activeFolder.materialCount === 1 ? 'material disponible' : 'materiales disponibles' }}</p></div><div class="workspace-summary"><b>{{ activeFolder.children.length }}</b><span>{{ activeFolder.children.length === 1 ? 'subcarpeta' : 'subcarpetas' }}</span></div></div>
         <div class="file-search"><span>⌕</span><input v-model="searchQuery" placeholder="Buscar archivos…" /><label><input v-model="searchAllFolders" type="checkbox" /> Buscar en todas las carpetas</label></div>
         <section v-if="!searchQuery && activeFolder.children.length" class="folder-section"><div class="section-label">Carpetas</div><div class="folder-tiles"><article v-for="folder in activeFolder.children" :key="folder.path" class="folder-tile" :style="{ '--folder-color': folder.color || 'var(--brand-green)' }"><button v-if="session.user?.role === 'admin' && folder.id && !(folder.name === 'Sin clasificar' && folder.parentId === null)" class="folder-tile-color" type="button" :aria-label="`Editar color de ${folder.name}`" title="Editar color" @click.stop="editFolderColor(folder)"><span></span></button><button class="folder-tile-open" @click="selectFolder(folder.path, folder.children.length > 0)"><span class="tile-folder-icon">⌑</span><span><b>{{ folder.name }}</b><small>{{ folder.materialCount }} {{ folder.materialCount === 1 ? 'archivo' : 'archivos' }}</small></span><span class="tile-arrow">›</span></button></article></div></section>
-        <section class="file-section"><div class="section-label">{{ fileSectionTitle }}</div><div v-if="filteredMaterials.length" class="file-list"><LibraryMaterialCard v-for="item in filteredMaterials" :key="item.id" :item="item" @open="selected = $event" @move="openMoveMaterial" @changed="reloadMaterials" @notice="notice = $event" @error="error = $event" /></div><div v-else class="file-empty">{{ searchQuery ? 'No se han encontrado archivos.' : 'Esta carpeta no contiene archivos directamente.' }}</div></section>
+        <section class="file-section"><div class="section-label">{{ fileSectionTitle }}</div><div v-if="filteredMaterials.length" class="file-list"><LibraryMaterialCard v-for="item in filteredMaterials" :key="item.id" :item="item" @open="selected = $event" @move="openMoveMaterial" @edit="openEditMaterial" @changed="reloadMaterials" @notice="notice = $event" @error="error = $event" /></div><div v-else class="file-empty">{{ searchQuery ? 'No se han encontrado archivos.' : 'Esta carpeta no contiene archivos directamente.' }}</div></section>
       </main>
     </div>
     <div v-else class="empty"><b>Aún no tienes materiales activos.</b><p>Tu profesora te dará acceso cuando estén preparados.</p></div>
     <MaterialViewer :material="selected" @close="selected = null" />
+    <MaterialEditModal v-if="editingMaterial && session.user?.role === 'admin'" :item="editingMaterial" @close="closeEditMaterial" @saved="materialEdited" />
     <div v-if="movingMaterial" class="modal folder-color-modal" role="dialog" aria-modal="true" aria-label="Mover material" @click.self="movingMaterial = null">
       <form class="folder-color-card folder-move-card" @submit.prevent="saveMoveMaterial">
         <header><div><p class="eyebrow">UBICACIÓN DEL MATERIAL</p><h2>Mover material</h2><small>{{ movingMaterial.title }}</small></div><button class="icon-button" type="button" aria-label="Cerrar" @click="movingMaterial = null">×</button></header>
