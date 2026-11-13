@@ -6,9 +6,9 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { readFileSync } from 'node:fs'
 import LibraryView from '../src/views/LibraryView.vue'
 
-const f = vi.hoisted(() => ({ role: 'admin', patch: vi.fn(), get: vi.fn() }))
+const f = vi.hoisted(() => ({ role: 'admin', patch: vi.fn(), get: vi.fn(), delete: vi.fn() }))
 vi.mock('../src/services/session', () => ({ session: { get user() { return { role: f.role } } } }))
-vi.mock('../src/services/api', () => ({ api: { get: f.get, patch: f.patch }, errorMessage: (e: Error) => e.message, protectedBlobUrl: vi.fn() }))
+vi.mock('../src/services/api', () => ({ api: { get: f.get, patch: f.patch, delete: f.delete }, errorMessage: (e: Error) => e.message, protectedBlobUrl: vi.fn() }))
 const folder = { id: 1, name: 'Química', path: 'Química', parent_id: null, color: null, effective_color: null }
 const item = { id: 7, title: 'Original', description: '', folder, kind: 'pdf', filename: 'original.pdf', content_type: 'application/pdf', size_bytes: 100, can_download: true, tags: [{ id: 1, name: 'QUIMICA' }], is_favorite: false, grants: [] }
 async function open() {
@@ -28,6 +28,16 @@ beforeEach(() => {
   f.patch.mockImplementation((_url: string, data: { title: string; tags: string[] }) => Promise.resolve({ data: { ...item, title: data.title, tags: data.tags.map((name, id) => ({ id, name })) } }))
 })
 describe('edición de materiales', () => {
+  it('refresca el catálogo y la biblioteca al borrar una etiqueta desde edición', async () => {
+    f.delete.mockResolvedValue({})
+    const wrapper = await open(); const dialog = await edit(wrapper); await flushPromises()
+    await dialog.get('button[aria-label="Mostrar etiquetas existentes"]').trigger('click')
+    await dialog.get('button[aria-label="Eliminar etiqueta QUIMICA"]').trigger('click')
+    await dialog.get('button[data-confirm-delete-tag]').trigger('click'); await flushPromises()
+    expect(dialog.find('button[aria-label="Eliminar etiqueta QUIMICA"]').exists()).toBe(false)
+    expect(f.get.mock.calls.filter(([url]) => url === '/admin/materials').length).toBeGreaterThan(1)
+    wrapper.unmount()
+  })
   it('permite que el diálogo se encoja dentro de la ventana', () => {
     const modalSource = readFileSync('src/components/MaterialEditModal.vue', 'utf8') as string
     expect(/\.folder-color-modal\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(modalSource)).toBe(true)
