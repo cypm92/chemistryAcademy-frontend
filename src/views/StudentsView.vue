@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
 import { api, errorMessage } from '../services/api'
-import type { StudentMaterialGrant, User } from '../types'
+import type { StudentMaterialAccess, User } from '../types'
 
 const props = withDefaults(defineProps<{ embedded?: boolean; refreshKey?: number }>(), { embedded: false, refreshKey: 0 })
 
@@ -13,7 +13,7 @@ const searchQuery = ref('')
 const editingId = ref<number | null>(null)
 const draft = ref({ name: '', email: '', password: '', role: 'guest' as User['role'], is_active: true })
 const selectedStudent = ref<User | null>(null)
-const grants = ref<StudentMaterialGrant[]>([])
+const grants = ref<StudentMaterialAccess[]>([])
 const grantsLoading = ref(false)
 const grantDates = ref<Record<number, string>>({})
 
@@ -26,6 +26,13 @@ async function load() { users.value = (await api.get('/admin/users')).data }
 function startEdit(user: User) { editingId.value = user.id; draft.value = { name: user.name, email: user.email, password: '', role: user.role, is_active: user.is_active } }
 function cancelEdit() { editingId.value = null }
 function localDateTime(value: string) { const date = new Date(value); return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16) }
+function directLabel(grant: StudentMaterialAccess) {
+  if (!grant.direct) return ''
+  const now = Date.now()
+  if (new Date(grant.direct.expires_at).getTime() <= now) return 'Directo caducado'
+  if (new Date(grant.direct.starts_at).getTime() > now) return 'Directo pendiente'
+  return 'Directo'
+}
 async function save(userId: number) {
   error.value = ''; notice.value = ''
   const user = users.value.find((item) => item.id === userId)
@@ -52,19 +59,20 @@ async function remove(user: User) {
 async function openMaterials(user: User) {
   selectedStudent.value = user; grantsLoading.value = true; error.value = ''
   try {
-    grants.value = (await api.get(`/admin/users/${user.id}/grants`)).data
-    grantDates.value = Object.fromEntries(grants.value.map((grant) => [grant.id, localDateTime(grant.expires_at)]))
+    grants.value = (await api.get(`/admin/users/${user.id}/material-access`)).data
+    grantDates.value = Object.fromEntries(grants.value.filter(row => row.direct).map(row => [row.direct!.id, localDateTime(row.direct!.expires_at)]))
   } catch (e) { error.value = errorMessage(e) } finally { grantsLoading.value = false }
 }
-async function saveGrant(grant: StudentMaterialGrant) {
+async function saveGrant(grant: StudentMaterialAccess) {
+  if (!grant.direct) return
   try {
-    await api.patch(`/admin/grants/${grant.id}`, { expires_at: new Date(grantDates.value[grant.id]).toISOString(), can_download: grant.can_download })
+    await api.patch(`/admin/grants/${grant.direct.id}`, { expires_at: new Date(grantDates.value[grant.direct.id]).toISOString(), can_download: grant.direct.can_download })
     notice.value = 'Acceso actualizado.'; await openMaterials(selectedStudent.value!)
   } catch (e) { error.value = errorMessage(e) }
 }
-async function removeGrant(grant: StudentMaterialGrant) {
-  if (!window.confirm(`¿Retirar el acceso a “${grant.material.title}”?`)) return
-  try { await api.delete(`/admin/grants/${grant.id}`); notice.value = 'Acceso retirado.'; await openMaterials(selectedStudent.value!) }
+async function removeGrant(grant: StudentMaterialAccess) {
+  if (!grant.direct || !window.confirm(`¿Retirar el acceso directo a “${grant.material.title}”? El acceso por etiquetas puede mantenerse.`)) return
+  try { await api.delete(`/admin/grants/${grant.direct.id}`); notice.value = 'Acceso directo retirado.'; await openMaterials(selectedStudent.value!) }
   catch (e) { error.value = errorMessage(e) }
 }
 onMounted(async () => { try { await load() } catch (e) { error.value = errorMessage(e) } finally { loading.value = false } })
@@ -89,7 +97,7 @@ watch(() => props.refreshKey, () => { void load() })
     <div v-if="selectedStudent" class="modal" @click.self="selectedStudent = null">
       <section class="student-materials-modal"><header><div><p class="eyebrow">MATERIALES COMPARTIDOS</p><h2>{{ selectedStudent.name }}</h2><small>{{ selectedStudent.email }}</small></div><button class="icon-button" @click="selectedStudent = null">×</button></header>
         <p v-if="grantsLoading" class="modal-empty">Cargando materiales…</p>
-        <div v-else-if="grants.length" class="student-grant-list"><article v-for="grant in grants" :key="grant.id" class="student-grant-row"><div class="grant-file-icon">{{ grant.material.kind === 'video' ? '▶' : 'PDF' }}</div><div class="grant-file-main"><b>{{ grant.material.title }}</b><small>{{ grant.material.filename }}</small></div><label>Caduca<input v-model="grantDates[grant.id]" type="datetime-local" /></label><label class="check"><input v-model="grant.can_download" type="checkbox" /> Descarga</label><button class="primary small" @click="saveGrant(grant)">Guardar</button><button class="remove-button" title="Retirar acceso" @click="removeGrant(grant)">×</button></article></div>
+        <div v-else-if="grants.length" class="student-grant-list"><article v-for="grant in grants" :key="grant.material.id" class="student-grant-row"><div class="grant-file-icon">{{ grant.material.kind === 'video' ? '▶' : 'PDF' }}</div><div class="grant-file-main"><b>{{ grant.material.title }}</b><small>{{ grant.material.filename }}</small><small>{{ [directLabel(grant), ...grant.tags.map(tag => `Etiqueta: ${tag.name}`)].filter(Boolean).join(' · ') }}</small></div><template v-if="grant.direct"><label>Caduca acceso directo<input v-model="grantDates[grant.direct.id]" type="datetime-local" /></label><label class="check"><input v-model="grant.direct.can_download" type="checkbox" /> Descarga directa</label><button class="primary small" @click="saveGrant(grant)">Guardar</button><button class="remove-button" title="Retirar acceso directo" @click="removeGrant(grant)">×</button></template></article></div>
         <p v-else class="modal-empty">Este alumno todavía no tiene materiales compartidos.</p>
       </section>
     </div>

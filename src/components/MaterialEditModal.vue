@@ -6,7 +6,7 @@ import type { Material, Tag } from '../types'
 import MaterialTagPicker from './MaterialTagPicker.vue'
 
 const props = defineProps<{ item: Material }>()
-const emit = defineEmits<{ close: []; saved: [item: Material] }>()
+const emit = defineEmits<{ close: []; saved: [item: Material]; tagDeleted: [] }>()
 const title = ref(props.item.title)
 const tags = ref(props.item.tags.map(tag => tag.name))
 const pendingTag = ref('')
@@ -30,6 +30,10 @@ async function loadTags() {
   finally { catalogLoading.value = false }
 }
 
+function tagDeleted(tag: Tag) {
+  availableTags.value = availableTags.value.filter(item => item.id !== tag.id)
+  emit('tagDeleted')
+}
 function close() { if (!saving.value) emit('close') }
 function keydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
@@ -67,7 +71,7 @@ async function save() {
       <header><div><p class="eyebrow">METADATOS DEL MATERIAL</p><h2>Editar material</h2></div><button class="icon-button" type="button" aria-label="Cerrar" :disabled="saving" @click="close">×</button></header>
       <div class="folder-color-body">
         <label>Título visible<input ref="titleInput" v-model="title" name="title" maxlength="180" required :disabled="saving" /></label>
-        <MaterialTagPicker ref="tagPicker" v-model="tags" v-model:pending="pendingTag" v-model:open="selectorOpen" :available="availableTags" :loading="catalogLoading" :catalog-error="catalogError" :disabled="saving" @retry="loadTags" />
+        <MaterialTagPicker ref="tagPicker" v-model="tags" v-model:pending="pendingTag" v-model:open="selectorOpen" :available="availableTags" :loading="catalogLoading" :catalog-error="catalogError" :disabled="saving" @retry="loadTags" @deleted="tagDeleted" />
         <p v-if="tagsChanged" class="material-edit-warning">Cambiar etiquetas puede conceder o retirar acceso por etiqueta. Los accesos directos se conservan.</p>
         <p v-if="error" class="alert" role="alert">{{ error }}</p>
       </div>

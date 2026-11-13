@@ -21,6 +21,7 @@ export interface Material {
   tags: Tag[]
   is_favorite: boolean
   grants?: MaterialGrant[]
+  sharing?: MaterialSharing[]
 }
 
 export interface Tag {
@@ -60,6 +61,18 @@ export interface StudentMaterialGrant {
     filename: string
     kind: 'video' | 'pdf'
   }
+}
+
+export interface MaterialSharing {
+  user: User
+  direct: Omit<MaterialGrant, 'user'> | null
+  tags: Tag[]
+}
+
+export interface StudentMaterialAccess {
+  material: StudentMaterialGrant['material']
+  direct: Omit<MaterialGrant, 'user'> | null
+  tags: Tag[]
 }
 
 export interface Booking {
