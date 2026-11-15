@@ -3,7 +3,7 @@
 ## Alcance y flujo de trabajo
 - Este repositorio contiene el frontend en Vue. Usa Vue 3, TypeScript, Vue Router y Vite, que son las tecnologías existentes; no lo conviertas a React ni reemplaces la arquitectura sin autorización expresa.
 - Mantén los cambios dentro de este repositorio, salvo que el usuario solicite explícitamente coordinar cambios en otros.
-- Trabaja en la rama actual. No cambies de rama, crees commits, hagas push o merge, publiques imágenes ni despliegues sin autorización expresa del usuario.
+- Trabaja en la rama actual; cambiar de rama requiere autorización. Para una feature acordada y validada localmente, DEC-006 autoriza de forma permanente commits, push a `develop` y apertura de PR hacia `main`, sin pedir permiso por cada paso; comprueba destinos, automatizaciones y cambios ajenos. No hagas merge ni despliegues sin autorización expresa; el usuario realiza el merge o autoriza esa operación. Publicar imágenes o hacer push a `main` requiere autorización expresa. Respeta confirmaciones reales y reglas superiores.
 - Antes de editar, revisa `git status`. Conserva los cambios existentes; nunca hagas reset, limpieza ni sobrescrituras.
 - Para funcionalidades que dependan de la API, acuerda con backend las formas de las solicitudes y respuestas, el tratamiento de errores y los criterios de aceptación antes de implementar.
 
