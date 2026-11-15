@@ -132,6 +132,12 @@
 .folder-move-card .folder-parent-options{position:static;margin-top:7px}
 .admin-page-folders .admin-tab-grid > form .folder-parent-options{position:static;margin-top:7px}
 
+/* The weekly timeline covers 08:00–22:00 at every viewport width. */
+.week-timeline { height:392px;margin-bottom:6px }
+.week-day { min-height:513px }
+@media(max-width:900px){.week-day{min-height:478px}}
+@media(max-width:620px){.week-day{min-height:448px}.week-timeline{height:392px}}
+
 /* Indicadores de asignaturas de la portada más visibles. */
 .bc-subjects span{display:inline-flex;align-items:center}
 .bc-subjects span::before{flex:0 0 25px;width:25px;height:25px;margin-right:9px;border-radius:5px}

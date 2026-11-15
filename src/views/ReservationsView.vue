@@ -111,7 +111,7 @@ const selectedLabel = computed(() =>
   }),
 );
 const slots = computed(() =>
-  Array.from({ length: 26 }, (_, index) => {
+  Array.from({ length: 28 }, (_, index) => {
     const hour = 8 + Math.floor(index / 2);
     return `${String(hour).padStart(2, "0")}:${index % 2 ? "30" : "00"}`;
   }),
@@ -148,8 +148,8 @@ const endOptions = computed(() => {
     .map((slots) => new Date(starts.getTime() + slots * 30 * 60 * 1000))
     .filter(
       (ends) =>
-        Number(madridInput(ends).slice(11, 13)) < 21 ||
-        (Number(madridInput(ends).slice(11, 13)) === 21 && Number(madridInput(ends).slice(14, 16)) === 0),
+        Number(madridInput(ends).slice(11, 13)) < 22 ||
+        (Number(madridInput(ends).slice(11, 13)) === 22 && Number(madridInput(ends).slice(14, 16)) === 0),
     )
     .map(
       (ends) =>
@@ -204,7 +204,7 @@ function weekEventStyle(event: Booking) {
   const starts = new Date(event.starts_at);
   const ends = new Date(event.ends_at);
   const calendarStart = 8 * 60;
-  const calendarEnd = 21 * 60;
+  const calendarEnd = 22 * 60;
   const startTime = madridInput(starts);
   const endTime = madridInput(ends);
   const eventStart = Number(startTime.slice(11, 13)) * 60 + Number(startTime.slice(14, 16));
@@ -400,7 +400,7 @@ async function saveCalendarClass() {
   if (!event || !calendarItemIsClass.value) return;
   try {
     const starts = new Date(madridToUtc(`${calendarEdit.date}T${calendarEdit.time}`));
-    if (!classEndsByMadridCutoff(starts, Number(calendarEdit.duration_slots))) { error.value = "La clase debe terminar como máximo a las 21:00 (hora de Madrid)."; return; }
+    if (!classEndsByMadridCutoff(starts, Number(calendarEdit.duration_slots))) { error.value = "La clase debe terminar como máximo a las 22:00 (hora de Madrid)."; return; }
     const { data } = await api.patch(`/admin/classes/${event.id}`, {
       starts_at: starts.toISOString(),
       duration_slots: Number(calendarEdit.duration_slots),
@@ -457,7 +457,7 @@ async function saveCalendarBlock() {
 async function createAdminClass() {
   try {
     const starts = madridToUtc(adminClass.starts_at);
-    if (!classEndsByMadridCutoff(new Date(starts), Number(adminClass.duration_slots))) { error.value = "La clase debe terminar como máximo a las 21:00 (hora de Madrid)."; return; }
+    if (!classEndsByMadridCutoff(new Date(starts), Number(adminClass.duration_slots))) { error.value = "La clase debe terminar como máximo a las 22:00 (hora de Madrid)."; return; }
     error.value = "";
     await api.post("/admin/classes", {
       ...adminClass,
@@ -528,13 +528,13 @@ onMounted(() => { void load(); void loadStudents(); });
             >
             <div class="week-timeline">
               <span
-                v-for="hour in [8, 10, 12, 14, 16, 18, 20]"
+                v-for="hour in [8, 10, 12, 14, 16, 18, 20, 22]"
                 :key="hour"
                 class="timeline-hour"
                 :style="{ top: `${(hour - 8) * 28}px` }"
                 >{{ hour }}</span
               ><span
-                v-for="hour in 13"
+                v-for="hour in 14"
                 :key="`line-${hour}`"
                 class="timeline-line"
                 :style="{ top: `${(hour - 1) * 28}px` }"
