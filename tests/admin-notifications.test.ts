@@ -11,6 +11,21 @@ vi.mock('../src/services/api', () => ({
 }))
 
 describe('solicitudes en notificaciones', () => {
+  it('mantiene una sola navegación superior para todas las secciones', async () => {
+    vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/admin/public-resources' ? { exams: [], forms: [], videos: [], documents: [] } : url === '/admin/notification-settings' ? { reminder_interval_minutes: 1440 } : [] }) as any)
+    const wrapper = mount(AdminView, { global: { stubs: { StudentsView: true, FolderTreePicker: true } } })
+    await flushPromises()
+    const nav = wrapper.get('nav.admin-tabs[aria-label="Secciones de administración"]')
+    expect(wrapper.find('aside.admin-sidebar').exists()).toBe(false)
+    const tabs = nav.findAll('[role="tab"]')
+    expect(tabs.map(tab => tab.text())).toEqual(['Usuarios', 'Carpetas y Archivos', 'Recursos públicos', 'Notificaciones'])
+    for (const tab of tabs) {
+      await tab.trigger('click')
+      expect(tab.attributes('aria-selected')).toBe('true')
+      expect(tabs.filter(item => item.attributes('aria-selected') === 'true')).toHaveLength(1)
+    }
+    wrapper.unmount()
+  })
   it('muestra las solicitudes solo en Notificaciones sin alterar los recordatorios', async () => {
     vi.mocked(api.get).mockImplementation(async (url) => {
       if (url === '/admin/contact-requests') return { data: [{ id: 1, name: 'Ejemplo', contact: 'ejemplo@example.com', need: 'Clases', message: 'Consulta de prueba', created_at: '2026-11-01T12:00:00Z' }] } as any
@@ -26,7 +41,7 @@ describe('solicitudes en notificaciones', () => {
     expect(wrapper.text()).toContain('Solicitudes desde la portada')
     expect(wrapper.text()).toContain('Consulta de prueba')
     expect(wrapper.text()).toContain('Recordatorios de reservas')
-    await wrapper.findAll('[role="tab"]').find(tab => tab.text() === 'Gestión de alumnos')!.trigger('click')
+    await wrapper.findAll('[role="tab"]').find(tab => tab.text() === 'Usuarios')!.trigger('click')
     expect(wrapper.text()).not.toContain('Solicitudes desde la portada')
     wrapper.unmount()
   })

@@ -25,7 +25,7 @@ vi.mock('../src/services/api', () => ({
 async function openUpload() {
   const wrapper = mount(AdminView, { global: { stubs: { StudentsView: true, MicrosoftIntegration: true } } })
   await flushPromises()
-  await wrapper.findAll('.admin-tabs button').find(button => button.text() === 'Gestión de carpetas')!.trigger('click')
+  await wrapper.findAll('.admin-tabs button').find(button => button.text() === 'Carpetas y Archivos')!.trigger('click')
   const form = wrapper.findAll('form').find(form => form.text().includes('Subir material'))!
   const file = new File(['pdf'], 'archivo.pdf', { type: 'application/pdf' })
   const input = form.get('input[type=file]')
@@ -33,6 +33,18 @@ async function openUpload() {
   await input.trigger('change')
   return { wrapper, form }
 }
+
+it('no reserva la cuadrícula de carpetas en gestión de alumnos', async () => {
+  const wrapper = mount(AdminView, { global: { stubs: { StudentsView: true, MicrosoftIntegration: true } } })
+  await flushPromises()
+  expect(wrapper.find('.admin-tab-grid').exists()).toBe(false)
+  await wrapper.findAll('.admin-tabs button').find(button => button.text() === 'Carpetas y Archivos')!.trigger('click')
+  expect(wrapper.find('.admin-tab-grid').exists()).toBe(true)
+  expect(wrapper.text()).toContain('Subir material')
+  await wrapper.findAll('.admin-tabs button').find(button => button.text() === 'Usuarios')!.trigger('click')
+  expect(wrapper.find('.admin-tab-grid').exists()).toBe(false)
+  wrapper.unmount()
+})
 
 describe('selección de carpeta al subir material', () => {
   beforeEach(() => { fixtures.post.mockReset(); fixtures.post.mockResolvedValue({ data: {} }); fixtures.delete.mockReset(); fixtures.delete.mockResolvedValue({}); fixtures.folders = [

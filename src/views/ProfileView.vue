@@ -10,6 +10,12 @@ const form = reactive({
   new_password: '',
   confirm_password: '',
 })
+const passwordFields = [
+  { key: 'current_password', label: 'Contraseña actual', autocomplete: 'current-password', optional: false },
+  { key: 'new_password', label: 'Nueva contraseña', autocomplete: 'new-password', optional: true },
+  { key: 'confirm_password', label: 'Confirmar nueva contraseña', autocomplete: 'new-password', optional: false },
+] as const
+const visiblePasswords = reactive({ current_password: false, new_password: false, confirm_password: false })
 const error = ref('')
 const success = ref('')
 const saving = ref(false)
@@ -64,6 +70,7 @@ async function save() {
     form.current_password = ''
     form.new_password = ''
     form.confirm_password = ''
+    for (const field of passwordFields) visiblePasswords[field.key] = false
     success.value = 'Tu perfil se ha actualizado correctamente.'
   } catch (err) {
     error.value = errorMessage(err)
@@ -91,9 +98,14 @@ async function save() {
 
         <div class="profile-divider"><span>Seguridad</span></div>
         <p class="profile-help">Para cambiar el correo o la contraseña, introduce primero tu contraseña actual.</p>
-        <label>Contraseña actual<input v-model="form.current_password" type="password" minlength="8" autocomplete="current-password" /></label>
-        <label>Nueva contraseña <small>(opcional)</small><input v-model="form.new_password" type="password" minlength="8" autocomplete="new-password" /></label>
-        <label>Confirmar nueva contraseña<input v-model="form.confirm_password" type="password" minlength="8" autocomplete="new-password" /></label>
+        <label v-for="field in passwordFields" :key="field.key">{{ field.label }} <small v-if="field.optional">(opcional)</small>
+          <span class="password-field">
+            <input v-model="form[field.key]" :type="visiblePasswords[field.key] ? 'text' : 'password'" minlength="8" :autocomplete="field.autocomplete" />
+            <button type="button" class="password-toggle" :aria-label="`${visiblePasswords[field.key] ? 'Ocultar' : 'Mostrar'} ${field.label.toLowerCase()}`" :aria-pressed="visiblePasswords[field.key]" @click="visiblePasswords[field.key] = !visiblePasswords[field.key]">
+              <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path v-if="visiblePasswords[field.key]" d="M4 4l16 16"/></svg>
+            </button>
+          </span>
+        </label>
 
         <p v-if="error" class="alert">{{ error }}</p>
         <p v-if="success" class="success-alert">{{ success }}</p>
@@ -102,3 +114,9 @@ async function save() {
     </div>
   </section>
 </template>
+
+<style scoped>
+.password-field { position: relative; display: flex; align-items: center; }
+.password-field input { width: 100%; padding-right: 44px; }
+.password-toggle { position: absolute; right: 8px; display: grid; place-items: center; border: 0; background: transparent; color: var(--green); padding: 5px; cursor: pointer; }
+</style>

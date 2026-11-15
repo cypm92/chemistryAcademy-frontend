@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api, errorMessage } from '../services/api'
 import { saveSession } from '../services/session'
@@ -11,6 +11,8 @@ import LegalConsent from '../components/LegalConsent.vue'
 const router = useRouter()
 const route = useRoute()
 const mode = ref<'login' | 'register'>(route.query.mode === 'register' ? 'register' : 'login')
+const showPassword = ref(false)
+watch(mode, () => { showPassword.value = false })
 const form = ref({ name: '', email: '', password: '' })
 const busy = ref(false)
 const error = ref('')
@@ -52,7 +54,7 @@ async function submit() {
       <p v-if="route.query.reason === 'session-expired'" class="auth-session-notice">Tu sesión ha caducado. Inicia sesión de nuevo para continuar.</p>
       <label v-if="mode === 'register'">Nombre<input v-model="form.name" required minlength="2" /></label>
       <label>Email<input v-model="form.email" type="email" required placeholder="tu@email.com" /></label>
-      <label>Contraseña<input v-model="form.password" type="password" required minlength="8" /></label>
+      <label>Contraseña<span class="password-field"><input v-model="form.password" :type="showPassword ? 'text' : 'password'" required minlength="8" /><button v-if="mode === 'register'" type="button" class="password-toggle" :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'" :aria-pressed="showPassword" @click="showPassword = !showPassword"><svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/><path v-if="showPassword" d="M4 4l16 16"/></svg></button></span></label>
       <LegalConsent v-if="mode === 'register'" purpose="crear y gestionar mi cuenta de alumno" />
       <label v-if="mode === 'register'" class="legal-consent"><input type="checkbox" required /><span>Confirmo que tengo al menos 14 años o que actúo con autorización de mi madre, padre o tutor legal.</span></label>
       <p v-if="error" class="alert">{{ error }}</p>
@@ -65,3 +67,10 @@ async function submit() {
     <LogoViewer v-if="logoOpen" :logo-src="branding.logoUrl" @close="logoOpen = false" />
   </section>
 </template>
+
+<style scoped>
+.password-field { position: relative; display: flex; align-items: center; }
+.password-field input { width: 100%; padding-right: 44px; }
+.password-toggle { position: absolute; right: 8px; display: grid; place-items: center; border: 0; background: transparent; color: var(--green); padding: 5px; cursor: pointer; }
+.auth-card :deep(.legal-consent) { font-size: 14px !important; line-height: 1.5; color: var(--ink) !important; }
+</style>

@@ -7,6 +7,7 @@ import becienciaLogo from './assets/beciencia-circular.svg'
 import LogoViewer from './components/LogoViewer.vue'
 import BrandSettings from './components/BrandSettings.vue'
 import { branding, loadBranding } from './services/theme'
+import { permissionMutationPending, permissionTimeoutToast } from './services/permissionTimeoutToast'
 
 const router = useRouter()
 const route = useRoute()
@@ -14,6 +15,10 @@ const menuOpen = ref(false)
 const avatarUrl = ref('')
 const logoOpen = ref(false)
 const brandSettingsOpen = ref(false)
+const removeNavigationGuard = router.beforeEach(() => !permissionMutationPending.value)
+const blockedEvents = ['click', 'keydown', 'pointerdown', 'mousedown', 'touchstart', 'change', 'input', 'submit', 'paste', 'drop', 'wheel', 'contextmenu']
+function blockBackground(event: Event) { if (permissionMutationPending.value && (!(event.target instanceof Element) || !event.target.closest('.student-access-overlay'))) { event.preventDefault(); event.stopImmediatePropagation() } }
+function beforeUnload(event: BeforeUnloadEvent) { if (permissionMutationPending.value && session.user) { event.preventDefault(); event.returnValue = '' } }
 
 watch(() => session.user, async (user) => {
   if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value)
@@ -22,8 +27,8 @@ watch(() => session.user, async (user) => {
   try { avatarUrl.value = await protectedBlobUrl('/auth/me/avatar') } catch { /* Avatar no disponible. */ }
 }, { immediate: true })
 
-onBeforeUnmount(() => { if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value) })
-onMounted(() => { void loadBranding() })
+onBeforeUnmount(() => { removeNavigationGuard(); window.removeEventListener('beforeunload', beforeUnload); for (const event of blockedEvents) document.removeEventListener(event, blockBackground, true); if (avatarUrl.value) URL.revokeObjectURL(avatarUrl.value) })
+onMounted(() => { window.addEventListener('beforeunload', beforeUnload); for (const event of blockedEvents) document.addEventListener(event, blockBackground, { capture: true, passive: false }); void loadBranding() })
 
 function handleBrandClick() {
   if (session.user?.role === 'admin') brandSettingsOpen.value = true
@@ -63,7 +68,12 @@ function leave() {
       <button class="mobile-logout" type="button" @click="leave"><span aria-hidden="true">↪</span> Cerrar sesión</button>
     </header>
     <main><RouterView /></main>
+    <div v-if="permissionTimeoutToast" class="permission-timeout-toast" role="alert">{{ permissionTimeoutToast }}</div>
     <LogoViewer v-if="logoOpen" :logo-src="branding.logoUrl" @close="logoOpen = false" />
     <BrandSettings v-if="brandSettingsOpen" @close="brandSettingsOpen = false" />
   </div>
 </template>
+
+<style scoped>
+.permission-timeout-toast { position: fixed; right: 1rem; bottom: 1rem; z-index: 100000; padding: 1rem; border-radius: 0.5rem; background: var(--danger); color: white; box-shadow: 0 4px 16px #0004; }
+</style>

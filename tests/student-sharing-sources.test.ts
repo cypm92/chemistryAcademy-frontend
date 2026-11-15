@@ -8,7 +8,7 @@ describe('materiales compartidos por etiqueta', () => {
   it('identifica el acceso directo aún no iniciado', async () => {
     const user = { id: 3, name: 'Alumna', email: 'a@example.test', role: 'guest', is_active: true }
     const direct = { id: 1, starts_at: '2098-01-01T00:00:00Z', expires_at: '2099-01-01T00:00:00Z', can_download: false }
-    get.mockImplementation((path: string) => Promise.resolve({ data: path === '/admin/users' ? [user] : [{ material: { id: 7, title: 'Archivo', filename: 'a.pdf', kind: 'pdf' }, direct, tags: [] }] }))
+    get.mockImplementation((path: string) => Promise.resolve({ data: path === '/admin/users' ? [user] : path.endsWith('/material-access') ? [{ material: { id: 7, title: 'Archivo', filename: 'a.pdf', kind: 'pdf' }, direct, tags: [] }] : [] }))
     const wrapper = mount(StudentsView); await flushPromises()
     await wrapper.get('.materials-button').trigger('click'); await flushPromises()
     expect(wrapper.text()).toContain('Directo pendiente')
@@ -16,7 +16,7 @@ describe('materiales compartidos por etiqueta', () => {
   it('distingue un acceso directo caducado de un acceso activo por etiqueta', async () => {
     const user = { id: 3, name: 'Alumna', email: 'a@example.test', role: 'guest', is_active: true }
     const direct = { id: 1, starts_at: '2020-01-01T00:00:00Z', expires_at: '2021-01-01T00:00:00Z', can_download: false }
-    get.mockImplementation((path: string) => Promise.resolve({ data: path === '/admin/users' ? [user] : [{ material: { id: 7, title: 'Archivo', filename: 'a.pdf', kind: 'pdf' }, direct, tags: [{ id: 2, name: 'QUIMICA' }] }] }))
+    get.mockImplementation((path: string) => Promise.resolve({ data: path === '/admin/users' ? [user] : path.endsWith('/tag-grants') ? [{ id: 4, tag: { id: 2, name: 'QUIMICA' }, starts_at: '2020-01-01T00:00:00Z', expires_at: '2099-01-01T00:00:00Z', can_download: false }] : path.endsWith('/material-access') ? [{ material: { id: 7, title: 'Archivo', filename: 'a.pdf', kind: 'pdf' }, direct, tags: [{ id: 2, name: 'QUIMICA' }] }] : [] }))
     const wrapper = mount(StudentsView); await flushPromises()
     await wrapper.get('.materials-button').trigger('click'); await flushPromises()
     expect(wrapper.text()).toContain('Directo caducado')
@@ -25,12 +25,12 @@ describe('materiales compartidos por etiqueta', () => {
   it('muestra el archivo y sus vías una sola vez', async () => {
     const user = { id: 3, name: 'Alumna', email: 'a@example.test', role: 'guest', is_active: true }
     const direct = { id: 1, starts_at: '2020-01-01T00:00:00Z', expires_at: '2099-01-01T00:00:00Z', can_download: false }
-    get.mockImplementation((path: string) => Promise.resolve({ data: path === '/admin/users' ? [user] : [{ material: { id: 7, title: 'Archivo', filename: 'a.pdf', kind: 'pdf' }, direct, tags: [{ id: 2, name: 'QUIMICA' }] }] }))
+    get.mockImplementation((path: string) => Promise.resolve({ data: path === '/admin/users' ? [user] : path.endsWith('/tag-grants') ? [{ id: 4, tag: { id: 2, name: 'QUIMICA' }, starts_at: '2020-01-01T00:00:00Z', expires_at: '2099-01-01T00:00:00Z', can_download: false }] : path.endsWith('/material-access') ? [{ material: { id: 7, title: 'Archivo', filename: 'a.pdf', kind: 'pdf' }, direct, tags: [{ id: 2, name: 'QUIMICA' }] }] : [] }))
     const wrapper = mount(StudentsView); await flushPromises()
     await wrapper.get('.materials-button').trigger('click'); await flushPromises()
     expect(wrapper.findAll('.student-grant-row')).toHaveLength(1)
     expect(wrapper.text()).toContain('QUIMICA')
     expect(wrapper.text()).toContain('Directo')
-    expect(wrapper.text()).toContain('Descarga directa')
+    expect(wrapper.get('.student-grant-row').text()).toContain('Permitir descarga')
   })
 })
