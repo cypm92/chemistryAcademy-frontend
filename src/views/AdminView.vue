@@ -1,19 +1,17 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { api, apiUrl, errorMessage } from '../services/api'
-import type { Folder, Material, Tag, User } from '../types'
+import type { Folder, Tag } from '../types'
 import FolderTreePicker from '../components/FolderTreePicker.vue'
 import MaterialTagPicker from '../components/MaterialTagPicker.vue'
 import StudentsView from './StudentsView.vue'
 import MicrosoftIntegration from '../components/MicrosoftIntegration.vue'
 
-const users = ref<User[]>([])
-const materials = ref<Material[]>([])
 const folders = ref<Folder[]>([])
 const tags = ref<Tag[]>([])
 const notice = ref('')
 const error = ref('')
-const newUser = ref({ name: '', email: '', password: '', role: 'guest' })
+
 const upload = ref({ title: '', description: '', tags: '', file: null as File | null })
 const uploadTags = ref<string[]>([])
 const uploadPendingTag = ref('')
@@ -37,10 +35,9 @@ const publicCommunities = ['Andalucía', 'Aragón', 'Asturias', 'Baleares', 'Can
 const resourcesLoading = ref(false)
 const resourceBusy = ref(false)
 const reminderPreset = ref('1440')
-const studentsRefreshKey = ref(0)
+
 const contactRequests = ref<Array<{ id: number; name: string; contact: string; need: string; message: string; created_at: string }>>([])
-const grant = ref({ user_id: 0, material_id: 0, tag_ids: [] as number[], scope: 'material', duration: 'week', expires_at: '', can_download: false })
-const guests = computed(() => users.value.filter((u) => u.role !== 'admin'))
+
 const editingFolder = computed(() => folders.value.find((folder) => folder.id === editingFolderId.value))
 const folderRows = computed(() => {
   const search = folderSearch.value.trim().toLocaleLowerCase()
@@ -76,15 +73,13 @@ async function saveNotificationSettings() {
   } catch (e) { error.value = errorMessage(e) }
 }
 async function load() {
-  const [u, m, f, t, contacts] = await Promise.all([api.get('/admin/users'), api.get('/admin/materials'), api.get('/admin/folders'), api.get('/admin/tags'), api.get('/admin/contact-requests')])
-  users.value = u.data; materials.value = m.data; folders.value = f.data; tags.value = t.data
+  const [f, t, contacts] = await Promise.all([api.get('/admin/folders'), api.get('/admin/tags'), api.get('/admin/contact-requests')])
+  folders.value = f.data; tags.value = t.data
   contactRequests.value = contacts.data
   if (folderSelection.value === null || !folders.value.some(folder => folder.id === folderSelection.value)) {
     folderSelection.value = folders.value.find(folder => folder.name === 'Sin clasificar' && folder.parent_id === null)?.id ?? null
   }
-  if (!guests.value.some((user) => user.id === grant.value.user_id)) grant.value.user_id = guests.value[0]?.id || 0
-  if (!grant.value.material_id && materials.value[0]) grant.value.material_id = materials.value[0].id
-  if (!grant.value.tag_ids.length && tags.value[0]) grant.value.tag_ids = [tags.value[0].id]
+
 }
 async function loadPublicResources() {
   resourcesLoading.value = true
@@ -141,7 +136,7 @@ async function act(task: () => Promise<unknown>, message: string) {
   error.value = ''; notice.value = ''
   try { await task(); notice.value = message; await load() } catch (e) { error.value = errorMessage(e) }
 }
-function createUser() { return act(() => api.post('/admin/users', newUser.value), 'Usuario creado correctamente.').then(() => { studentsRefreshKey.value += 1 }) }
+
 function uploadFile() {
   const file = upload.value.file
   if (!file) return
@@ -156,20 +151,6 @@ function uploadFile() {
 }
 function tagDeleted(tag: Tag) {
   tags.value = tags.value.filter(item => item.id !== tag.id)
-  grant.value.tag_ids = grant.value.tag_ids.filter(id => id !== tag.id)
-}
-function grantAccess() {
-  const end = new Date()
-  if (grant.value.duration === 'week') end.setDate(end.getDate() + 7)
-  else if (grant.value.duration === 'month') end.setMonth(end.getMonth() + 1)
-  else end.setTime(new Date(grant.value.expires_at).getTime())
-  if (grant.value.scope === 'tag') {
-    if (!grant.value.tag_ids.length) { error.value = 'Selecciona al menos una etiqueta'; return }
-    return act(() => Promise.all(grant.value.tag_ids.map((tag_id) => api.post('/admin/tag-grants', {
-      user_id: grant.value.user_id, tag_id, expires_at: end.toISOString(), can_download: grant.value.can_download,
-    }))), 'Etiquetas compartidas correctamente.')
-  }
-  return act(() => api.post('/admin/grants', { user_id: grant.value.user_id, material_id: grant.value.material_id, expires_at: end.toISOString(), can_download: grant.value.can_download }), 'Acceso actualizado.')
 }
 async function saveFolder() {
   const editing = editingFolderId.value
@@ -224,11 +205,11 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
 <template>
   <section :class="['page', 'admin-page', { 'admin-page-students': activeSection === 'students', 'admin-page-folders': activeSection === 'folders', 'admin-page-settings': activeSection === 'settings', 'admin-page-resources': activeSection === 'resources' }]">
     <p v-if="notice" class="success-alert">{{ notice }}</p><p v-if="error" class="alert">{{ error }}</p>
-    <div class="admin-tabs" role="tablist" aria-label="Secciones de administración"><button :class="{ active: activeSection === 'students' }" type="button" role="tab" :aria-selected="activeSection === 'students'" @click="activeSection = 'students'">Gestión de alumnos</button><button :class="{ active: activeSection === 'folders' }" type="button" role="tab" :aria-selected="activeSection === 'folders'" @click="activeSection = 'folders'">Gestión de carpetas</button><button :class="{ active: activeSection === 'resources' }" type="button" role="tab" :aria-selected="activeSection === 'resources'" @click="activeSection = 'resources'">Recursos públicos</button><button :class="{ active: activeSection === 'settings' }" type="button" role="tab" :aria-selected="activeSection === 'settings'" @click="activeSection = 'settings'">Notificaciones</button></div>
-    <div class="admin-tab-grid">
-      <form v-if="activeSection === 'students'" class="panel" @submit.prevent="createUser"><h2>Crear estudiante</h2><p>También pueden registrarse por sí mismos como invitados.</p><label>Nombre<input v-model="newUser.name" required minlength="2" /></label><label>Email<input v-model="newUser.email" type="email" required /></label><label>Contraseña temporal<input v-model="newUser.password" type="password" required minlength="8" /></label><button class="primary">Crear usuario</button></form>
+    <div class="admin-layout"><nav class="admin-tabs" role="tablist" aria-label="Secciones de administración"><button :class="{ active: activeSection === 'students' }" type="button" role="tab" :aria-selected="activeSection === 'students'" @click="activeSection = 'students'">Usuarios</button><button :class="{ active: activeSection === 'folders' }" type="button" role="tab" :aria-selected="activeSection === 'folders'" @click="activeSection = 'folders'">Carpetas y Archivos</button><button :class="{ active: activeSection === 'resources' }" type="button" role="tab" :aria-selected="activeSection === 'resources'" @click="activeSection = 'resources'">Recursos públicos</button><button :class="{ active: activeSection === 'settings' }" type="button" role="tab" :aria-selected="activeSection === 'settings'" @click="activeSection = 'settings'">Notificaciones</button></nav><main class="admin-content">
+    <div v-if="activeSection === 'folders'" class="admin-tab-grid">
+
       <form v-if="activeSection === 'folders'" class="panel" @submit.prevent="uploadFile"><h2>Subir material</h2><p>PDF, MP4, WebM o MOV. Elige una carpeta creada previamente.</p><label>Título<input v-model="upload.title" required /></label><label>Carpeta<FolderTreePicker v-model="folderSelection" :folders="folders" :allow-root="false" /></label><MaterialTagPicker v-model="uploadTags" v-model:pending="uploadPendingTag" v-model:open="uploadTagSelectorOpen" :available="tags" @deleted="tagDeleted" /><label>Descripción<textarea v-model="upload.description" rows="3" /></label><label class="file-input">Archivo<input type="file" accept=".pdf,video/*" required @change="upload.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label><button class="primary">Subir material</button></form>
-      <form v-if="activeSection === 'students'" class="panel" @submit.prevent="grantAccess"><h2>Compartir con un estudiante</h2><p>Comparte un archivo concreto o todos los materiales que lleven una o varias etiquetas.</p><label>Estudiante<select v-model="grant.user_id" required><option v-for="u in guests" :key="u.id" :value="u.id">{{ u.name }} · {{ u.email }}</option></select></label><label>Compartir<select v-model="grant.scope"><option value="material">Un archivo</option><option value="tag">Una o varias etiquetas</option></select></label><label v-if="grant.scope === 'material'">Material<select v-model="grant.material_id" required><option v-for="m in materials" :key="m.id" :value="m.id">{{ m.title }}</option></select></label><fieldset v-else class="tag-selector"><legend>Etiquetas</legend><p v-if="!tags.length">No hay etiquetas todavía.</p><label v-for="tag in tags" :key="tag.id" class="check"><input v-model="grant.tag_ids" type="checkbox" :value="tag.id" /> {{ tag.name }}</label><small>Incluye los archivos actuales y futuros con cualquiera de las etiquetas seleccionadas.</small></fieldset><label>Duración<select v-model="grant.duration"><option value="week">Una semana</option><option value="month">Un mes</option><option value="custom">Fecha concreta</option></select></label><label v-if="grant.duration === 'custom'">Fin<input v-model="grant.expires_at" type="datetime-local" required /></label><label class="check"><input v-model="grant.can_download" type="checkbox" /> Permitir descarga a este usuario</label><button class="primary">Guardar acceso</button></form>
+
       <section v-if="activeSection === 'folders'" class="panel folders-admin-panel">
         <h2>{{ editingFolderId ? 'Editar carpeta' : 'Crear carpeta' }}</h2><p>{{ editingFolder ? `Cambia el nombre o la ubicación de «${editingFolder.path}».` : 'Añade una carpeta raíz o una subcarpeta a la biblioteca.' }}</p>
         <form @submit.prevent="saveFolder">
@@ -304,7 +285,7 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
       <label>Antelación del recordatorio<select v-model="reminderPreset" @change="reminderPreset !== 'custom' && (notificationSettings.reminder_interval_minutes = Number(reminderPreset))"><option value="1440">24 horas</option><option value="360">6 horas</option><option value="120">2 horas</option><option value="30">30 minutos</option><option value="custom">Personalizado</option></select></label><label v-if="reminderPreset === 'custom'">Intervalo personalizado (minutos)<input v-model.number="notificationSettings.reminder_interval_minutes" type="number" min="1" max="525600" step="1" required /><small>Entre 1 minuto y 365 días (525600 minutos).</small></label>
       <button class="primary">Guardar configuración</button>
     </form>
-    <StudentsView v-if="activeSection === 'students'" embedded :refresh-key="studentsRefreshKey" />
+    <StudentsView v-if="activeSection === 'students'" embedded />
     <section v-if="activeSection === 'settings'" class="contact-requests-panel">
       <div class="contact-requests-head"><div><h2>Solicitudes desde la portada</h2><p>Mensajes enviados por personas que todavía no tienen cuenta.</p></div><span>{{ contactRequests.length }} {{ contactRequests.length === 1 ? 'solicitud' : 'solicitudes' }}</span></div>
       <div v-if="contactRequests.length" class="contact-requests-list"><article v-for="request in contactRequests" :key="request.id"><div><b>{{ request.name }}</b><small>{{ request.contact }} · {{ request.need }}</small></div><p>{{ request.message || 'Sin mensaje adicional.' }}</p><time>{{ new Date(request.created_at).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }) }}</time></article></div>
@@ -322,5 +303,18 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
         <p v-if="!folderRows.length" class="folder-no-results">No se han encontrado carpetas.</p>
       </div>
     </section>
+    </main></div>
   </section>
 </template>
+
+<style scoped>
+.admin-page { max-width: none; height: auto; margin: 0; padding: 12px 24px; }
+.admin-layout { min-width: 0; }
+.admin-tabs { height: auto; max-width: 900px; margin: 0 auto 8px; }
+.admin-tabs button { min-width: 0; cursor: pointer; }
+.admin-content { min-width: 0; padding: 8px 0; }
+@media (min-width: 801px) {
+  .admin-page-students :deep(.students-embedded) { margin-top: 0; }
+}
+@media (max-width: 800px) { .admin-page { padding: 16px; } .admin-content { padding: 16px 0; } .admin-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .admin-tabs button { padding: 10px 6px; } }
+</style>

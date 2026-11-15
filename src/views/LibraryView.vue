@@ -24,6 +24,8 @@ const colorForm = ref({ useOwnColor: true, color: '#1D6B4F' })
 const savingColor = ref(false)
 const movingMaterial = ref<Material | null>(null)
 const editingMaterial = ref<Material | null>(null)
+const sharingPending = ref<number[]>([])
+const sharingFailed = ref<number[]>([])
 let editOrigin: HTMLElement | null = null
 function openEditMaterial(material: Material) {
   if (session.user?.role !== 'admin') return
@@ -35,13 +37,35 @@ function closeEditMaterial() {
   editOrigin?.focus()
 }
 function materialEdited(material: Material) {
+  const previous = materials.value.find(item => item.id === material.id)
+  const tagsChanged = JSON.stringify(previous?.tags ?? []) !== JSON.stringify(material.tags)
   materials.value = materials.value.map(item => item.id === material.id ? { ...item, title: material.title, tags: material.tags } : item)
   notice.value = 'Material actualizado.'
   closeEditMaterial()
+  if (tagsChanged) void refreshSharing(material.id)
+}
+async function refreshSharing(materialId: number) {
+  sharingPending.value = [...new Set([...sharingPending.value, materialId])]
+  sharingFailed.value = sharingFailed.value.filter(id => id !== materialId)
+  try {
+    const rows: Material[] = (await api.get('/admin/materials')).data
+    const refreshed = rows.find(item => item.id === materialId)
+    if (!refreshed) throw new Error('No se pudo actualizar la lista de accesos. Recarga la biblioteca.')
+    materials.value = materials.value.map(item => item.id === materialId ? { ...item, sharing: refreshed.sharing, grants: refreshed.grants } : item)
+  } catch (e) { error.value = errorMessage(e); sharingFailed.value = [...new Set([...sharingFailed.value, materialId])] }
+  finally { sharingPending.value = sharingPending.value.filter(id => id !== materialId) }
 }
 const moveTargetId = ref<number | null>(null)
 const savingMove = ref(false)
 const moveError = ref('')
+const ordering = ref(false)
+async function reorderMaterial(material: Material, direction: 'up' | 'down') {
+  if (ordering.value) return
+  ordering.value = true
+  try { await api.post(`/admin/materials/${material.id}/order`, { direction }); await loadMaterials() }
+  catch (e) { error.value = errorMessage(e) }
+  finally { ordering.value = false }
+}
 
 const folderTree = computed<LibraryFolderNode[]>(() => {
   const nodes = new Map<string, LibraryFolderNode>()
@@ -160,6 +184,8 @@ async function loadMaterials() {
   ])
   materials.value = materialResponse.data
   folders.value = folderResponse.data
+  sharingPending.value = []
+  sharingFailed.value = []
   if (!selectedFolderPath.value || !findFolder(folderTree.value, selectedFolderPath.value)) {
     selectFolder(folderTree.value[0]?.path || '')
   }
@@ -178,7 +204,7 @@ onMounted(async () => { try { await loadMaterials() } catch (e) { error.value = 
         <div class="workspace-top"><div><div class="breadcrumbs"><button v-for="(crumb, index) in breadcrumbs" :key="index" @click="selectFolder(breadcrumbs.slice(0, index + 1).join(' / '))">{{ crumb }}</button></div><h1>{{ activeFolder.name }}</h1><p>{{ activeFolder.materialCount }} {{ activeFolder.materialCount === 1 ? 'material disponible' : 'materiales disponibles' }}</p></div><div class="workspace-summary"><b>{{ activeFolder.children.length }}</b><span>{{ activeFolder.children.length === 1 ? 'subcarpeta' : 'subcarpetas' }}</span></div></div>
         <div class="file-search"><span>⌕</span><input v-model="searchQuery" placeholder="Buscar archivos…" /><label><input v-model="searchAllFolders" type="checkbox" /> Buscar en todas las carpetas</label></div>
         <section v-if="!searchQuery && activeFolder.children.length" class="folder-section"><div class="section-label">Carpetas</div><div class="folder-tiles"><article v-for="folder in activeFolder.children" :key="folder.path" class="folder-tile" :style="{ '--folder-color': folder.color || 'var(--brand-green)' }"><button v-if="session.user?.role === 'admin' && folder.id && !(folder.name === 'Sin clasificar' && folder.parentId === null)" class="folder-tile-color" type="button" :aria-label="`Editar color de ${folder.name}`" title="Editar color" @click.stop="editFolderColor(folder)"><span></span></button><button class="folder-tile-open" @click="selectFolder(folder.path, folder.children.length > 0)"><span class="tile-folder-icon">⌑</span><span><b>{{ folder.name }}</b><small>{{ folder.materialCount }} {{ folder.materialCount === 1 ? 'archivo' : 'archivos' }}</small></span><span class="tile-arrow">›</span></button></article></div></section>
-        <section class="file-section"><div class="section-label">{{ fileSectionTitle }}</div><div v-if="filteredMaterials.length" class="file-list"><LibraryMaterialCard v-for="item in filteredMaterials" :key="item.id" :item="item" @open="selected = $event" @move="openMoveMaterial" @edit="openEditMaterial" @changed="reloadMaterials" @notice="notice = $event" @error="error = $event" /></div><div v-else class="file-empty">{{ searchQuery ? 'No se han encontrado archivos.' : 'Esta carpeta no contiene archivos directamente.' }}</div></section>
+        <section class="file-section"><div class="section-label">{{ fileSectionTitle }}</div><div v-if="filteredMaterials.length" class="file-list"><LibraryMaterialCard v-for="(item, index) in filteredMaterials" :key="item.id" :item="item" :sharing-pending="sharingPending.includes(item.id)" :sharing-failed="sharingFailed.includes(item.id)" :can-reorder="!searchQuery && !searchAllFolders && selectedFolderPath !== '__favorites__'" :first="index === 0" :last="index === filteredMaterials.length - 1" :ordering="ordering" @retry-sharing="refreshSharing(item.id)" @reorder="reorderMaterial" @open="selected = $event" @move="openMoveMaterial" @edit="openEditMaterial" @changed="reloadMaterials" @notice="notice = $event" @error="error = $event" /></div><div v-else class="file-empty">{{ searchQuery ? 'No se han encontrado archivos.' : 'Esta carpeta no contiene archivos directamente.' }}</div></section>
       </main>
     </div>
     <div v-else class="empty"><b>Aún no tienes materiales activos.</b><p>Tu profesora te dará acceso cuando estén preparados.</p></div>

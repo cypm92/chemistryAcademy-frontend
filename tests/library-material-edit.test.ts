@@ -175,6 +175,7 @@ describe('edición de materiales', () => {
     const wrapper = await open(); const dialog = await edit(wrapper)
     await dialog.get('input[name="title"]').setValue('Nuevo título')
     await dialog.get('form').trigger('submit'); await flushPromises()
+    await wrapper.get('button[aria-label="Compartido con: Nuevo título"]').trigger('click')
     expect(wrapper.text()).toContain('Alumno')
     expect(wrapper.text()).toContain('Descargar')
     wrapper.unmount()
