@@ -30,15 +30,22 @@ const tagDates = ref<Record<number, string>>({})
 const tagDownloadDrafts = ref<Record<number, boolean>>({})
 const form = ref({ scope: 'material', material_id: 0, tag_ids: [] as number[], duration: 'week', expires_at: '', can_download: false })
 const materialSearch = ref('')
+const tagSearch = ref('')
 const materialPickerOpen = ref(false)
 const materialPickerButton = ref<HTMLButtonElement | null>(null)
 const materialSearchInput = ref<HTMLInputElement | null>(null)
+const tagSearchInput = ref<HTMLInputElement | null>(null)
 const selectedMaterial = computed(() => materials.value.find(material => material.id === form.value.material_id))
 const filteredMaterials = computed(() => materials.value.filter(material => material.title.toLocaleLowerCase('es').includes(materialSearch.value.trim().toLocaleLowerCase('es'))))
+const filteredTags = computed(() => {
+  const searchTerm = tagSearch.value.trim().toLocaleLowerCase('es')
+  return tags.value.filter(tag => form.value.tag_ids.includes(tag.id) || tag.name.toLocaleLowerCase('es').includes(searchTerm))
+})
 function materialLabel(material: Material) { return `${material.title} (${material.kind === 'video' ? 'VIDEO' : 'PDF'})` }
 function toggleMaterials() { materialPickerOpen.value = !materialPickerOpen.value; if (materialPickerOpen.value) void nextTick(() => materialSearchInput.value?.focus()) }
 function closeMaterials() { materialPickerOpen.value = false; void nextTick(() => materialPickerButton.value?.focus()) }
 function chooseMaterial(material: Material) { form.value.material_id = material.id; materialSearch.value = ''; closeMaterials() }
+function focusTagSearch() { void nextTick(() => tagSearchInput.value?.focus()) }
 function keepModalFocus(event: KeyboardEvent) {
   if (event.key !== 'Tab') return
   if (busy.value) { event.preventDefault(); closeButton.value?.focus(); return }
@@ -210,7 +217,7 @@ onMounted(async () => { await nextTick(); closeButton.value?.focus(); await load
           <details class="add-access"><summary>Compartir material o etiquetas</summary><form @submit.prevent="addAccess">
             <label>Compartir<select v-model="form.scope"><option value="material">Un archivo</option><option value="tag">Una o varias etiquetas</option></select></label>
             <div v-if="form.scope === 'material'" class="material-picker"><span>Material</span><button ref="materialPickerButton" type="button" class="material-picker-trigger" aria-label="Elegir material" :aria-expanded="materialPickerOpen" @click="toggleMaterials"><span>{{ selectedMaterial ? materialLabel(selectedMaterial) : 'Selecciona un material' }}</span><span aria-hidden="true">⌄</span></button><div v-if="materialPickerOpen" class="material-options" @keydown.esc.stop.prevent="closeMaterials"><input ref="materialSearchInput" v-model="materialSearch" aria-label="Buscar material" placeholder="Buscar material" @keydown.enter.prevent /><div v-if="filteredMaterials.length" class="material-options-list"><button v-for="m in filteredMaterials" :key="m.id" type="button" :aria-label="`Seleccionar ${materialLabel(m)}`" @click="chooseMaterial(m)">{{ materialLabel(m) }}</button></div><small v-else>No hay materiales disponibles.</small></div></div>
-            <fieldset v-else><legend>Etiquetas</legend><p v-if="!tags.length">No hay etiquetas todavía.</p><label v-for="tag in tags" :key="tag.id" class="check"><input v-model="form.tag_ids" type="checkbox" :value="tag.id" /> {{ tag.name }}</label><small>Incluye los archivos actuales y futuros de cada etiqueta.</small></fieldset>
+            <fieldset v-else><legend>Etiquetas</legend><p v-if="!tags.length">No hay etiquetas todavía.</p><div v-else class="tag-picker"><input ref="tagSearchInput" v-model="tagSearch" type="text" aria-label="Buscar etiquetas" placeholder="Buscar etiquetas" /><div class="tag-options-list"><label v-for="tag in filteredTags" :key="tag.id" class="check"><input v-model="form.tag_ids" type="checkbox" :value="tag.id" /> {{ tag.name }}</label><small v-if="!filteredTags.length">No hay etiquetas disponibles.</small></div></div><small>Incluye los archivos actuales y futuros de cada etiqueta.</small></fieldset>
             <label>Duración<select v-model="form.duration"><option value="week">Una semana</option><option value="month">Un mes</option><option value="custom">Fecha concreta</option></select></label>
             <label v-if="form.duration === 'custom'">Fin<input v-model="form.expires_at" type="datetime-local" required /></label>
             <label class="check download-check"><input v-model="form.can_download" type="checkbox" /> Permitir descarga</label><button class="primary small" :disabled="busy">Guardar acceso</button>
@@ -259,9 +266,17 @@ onMounted(async () => { await nextTick(); closeButton.value?.focus(); await load
 .tag-group .expiry-control input { margin-top: 4px; padding: 7px; font-size: 11px; }
 .tag-group .download-check { white-space: nowrap; }
 .tag-group li { overflow-wrap: anywhere; }
+.tag-picker { display: grid; gap: 6px; min-width: 0; }
+.tag-picker input { margin-top: 5px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: white; color: var(--ink); font: inherit; }
+.tag-picker input:focus-visible { outline: 2px solid var(--brand-green); outline-offset: 2px; }
+.tag-options-list { display: grid; max-height: 200px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; }
+.tag-options-list .check { min-height: 44px; display: flex; align-items: center; padding: 8px; margin: 0; }
+.tag-options-list .check input { margin-right: 8px; }
+.tag-options-list small { grid-column: 1 / -1; padding: 8px 12px; color: var(--muted); font-size: 13px; }
 @media (max-width: 900px) {
   .tag-group { grid-template-columns: 44px 1fr 185px auto; }
   .tag-group .download-check { grid-column: 2; }
+  .tag-options-list { max-height: 180px; }
 }
 @media (max-width: 600px) {
   .student-access-overlay { padding: 12px; }
@@ -274,5 +289,6 @@ onMounted(async () => { await nextTick(); closeButton.value?.focus(); await load
   .tag-group details { grid-column: 1 / -1; }
   .expiry-control label { flex: 1; }
   .expiry-control input { width: 100%; max-width: 100%; }
+  .tag-options-list { max-height: 150px; }
 }
 </style>
