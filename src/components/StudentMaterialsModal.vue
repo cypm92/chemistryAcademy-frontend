@@ -39,10 +39,7 @@ const selectedMaterial = computed(() => materials.value.find(material => materia
 const filteredMaterials = computed(() => materials.value.filter(material => material.title.toLocaleLowerCase('es').includes(materialSearch.value.trim().toLocaleLowerCase('es'))))
 const filteredTags = computed(() => {
   const searchTerm = tagSearch.value.trim().toLocaleLowerCase('es')
-  const markedIds = new Set(form.value.tag_ids)
-  const marked = tags.value.filter(tag => markedIds.has(tag.id))
-  const matching = tags.value.filter(tag => !markedIds.has(tag.id) && tag.name.toLocaleLowerCase('es').includes(searchTerm))
-  return [...marked, ...matching]
+  return tags.value.filter(tag => form.value.tag_ids.includes(tag.id) || tag.name.toLocaleLowerCase('es').includes(searchTerm))
 })
 function materialLabel(material: Material) { return `${material.title} (${material.kind === 'video' ? 'VIDEO' : 'PDF'})` }
 function toggleMaterials() { materialPickerOpen.value = !materialPickerOpen.value; if (materialPickerOpen.value) void nextTick(() => materialSearchInput.value?.focus()) }
