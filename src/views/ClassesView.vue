@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import type { AcademyClass, Material } from "../types";
-import { api, errorMessage } from "../services/api";
+import { api, errorMessage, downloadMaterial } from "../services/api";
 import { session } from "../services/session";
 import { classEndsByMadridCutoff, MADRID, madridInput, madridToUtc, canCancelBooking } from "../services/madridTime";
 import MaterialViewer from "../components/MaterialViewer.vue";
@@ -653,16 +653,26 @@ onMounted(load);
                           · Pulsa para abrir</small
                         ></span
                       ><span class="class-resource-arrow">›</span></button
-                    ><button
-                      v-if="isAdmin"
-                      class="delete-attachment"
-                      :title="`Eliminar ${material.title}`"
-                      @click="
-                        deleteAttachment(item, material.id, material.title)
-                      "
-                    >
-                      ×
-                    </button>
+                    ><div v-if="material.can_download || isAdmin" class="class-resource-actions">
+                      <button
+                        v-if="material.can_download"
+                        class="class-resource-download-attachment"
+                        :title="`Descargar ${material.title}`"
+                        @click="downloadMaterial(material.id, material.filename)"
+                      >
+                        Descargar
+                      </button
+                      ><button
+                        v-if="isAdmin"
+                        class="delete-attachment"
+                        :title="`Eliminar ${material.title}`"
+                        @click="
+                          deleteAttachment(item, material.id, material.title)
+                        "
+                      >
+                        Eliminar
+                      </button>
+                    </div>
                   </article>
                 </div>
               </section>

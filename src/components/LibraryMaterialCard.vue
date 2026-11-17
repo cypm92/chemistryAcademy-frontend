@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { api, errorMessage, protectedBlobUrl } from '../services/api'
+import { api, errorMessage, downloadMaterial } from '../services/api'
 import { session } from '../services/session'
 import type { Material, User } from '../types'
 import StudentMaterialsModal from './StudentMaterialsModal.vue'
@@ -48,9 +48,7 @@ function expiry(value?: string) {
   return value ? `Hasta ${new Intl.DateTimeFormat('es', { dateStyle: 'medium' }).format(new Date(value))}` : ''
 }
 async function download() {
-  const url = await protectedBlobUrl(`/materials/${props.item.id}/content?download=true`)
-  const anchor = document.createElement('a'); anchor.href = url; anchor.download = props.item.filename; anchor.click()
-  URL.revokeObjectURL(url)
+  await downloadMaterial(props.item.id, props.item.filename)
 }
 
 async function deleteMaterial() {
