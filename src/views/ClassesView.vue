@@ -653,24 +653,26 @@ onMounted(load);
                           · Pulsa para abrir</small
                         ></span
                       ><span class="class-resource-arrow">›</span></button
-                    ><button
-                      v-if="material.can_download"
-                      class="download-attachment"
-                      :title="`Descargar ${material.title}`"
-                      @click="downloadMaterial(material.id, material.filename)"
-                    >
-                      Descargar
-                    </button
-                    ><button
-                      v-if="isAdmin"
-                      class="delete-attachment"
-                      :title="`Eliminar ${material.title}`"
-                      @click="
-                        deleteAttachment(item, material.id, material.title)
-                      "
-                    >
-                      ×
-                    </button>
+                    ><div v-if="material.can_download || isAdmin" class="class-resource-actions">
+                      <button
+                        v-if="material.can_download"
+                        class="class-resource-download-attachment"
+                        :title="`Descargar ${material.title}`"
+                        @click="downloadMaterial(material.id, material.filename)"
+                      >
+                        ⬇
+                      </button
+                      ><button
+                        v-if="isAdmin"
+                        class="delete-attachment"
+                        :title="`Eliminar ${material.title}`"
+                        @click="
+                          deleteAttachment(item, material.id, material.title)
+                        "
+                      >
+                        ×
+                      </button>
+                    </div>
                   </article>
                 </div>
               </section>
