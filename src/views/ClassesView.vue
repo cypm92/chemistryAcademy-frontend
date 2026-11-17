@@ -660,7 +660,7 @@ onMounted(load);
                         :title="`Descargar ${material.title}`"
                         @click="downloadMaterial(material.id, material.filename)"
                       >
-                        ⬇
+                        Descargar
                       </button
                       ><button
                         v-if="isAdmin"
@@ -670,7 +670,7 @@ onMounted(load);
                           deleteAttachment(item, material.id, material.title)
                         "
                       >
-                        ×
+                        Eliminar
                       </button>
                     </div>
                   </article>
