@@ -50,3 +50,12 @@ export async function protectedBlobUrl(path: string): Promise<string> {
   const response = await api.get(path, { responseType: 'blob' })
   return URL.createObjectURL(response.data)
 }
+
+export async function downloadMaterial(id: number, filename: string): Promise<void> {
+  const url = await protectedBlobUrl(`/materials/${id}/content?download=true`)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = filename
+  anchor.click()
+  URL.revokeObjectURL(url)
+}

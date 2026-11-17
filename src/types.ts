@@ -106,5 +106,5 @@ export interface AcademyClass {
   user_id: number | null
   user_name: string
   user_email: string
-  materials: Array<{ id: number; title: string; filename: string; kind: 'video' | 'pdf' }>
+  materials: Array<{ id: number; title: string; filename: string; kind: 'video' | 'pdf'; can_download: boolean }>
 }
