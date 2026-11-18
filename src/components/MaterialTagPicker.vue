@@ -74,7 +74,7 @@ defineExpose({ closeSelector })
       <div v-if="catalogError" class="alert material-tag-error" role="alert"><span>No se pudieron cargar las etiquetas. {{ catalogError }}</span><button class="secondary" type="button" aria-label="Reintentar cargar etiquetas" :disabled="disabled" @click="emit('retry')">Reintentar</button></div>
       <div v-if="open" class="tag-selector-options" @keydown.esc.stop.prevent="closeSelector">
         <input :value="search" aria-label="Buscar etiquetas existentes" placeholder="Buscar etiquetas" :disabled="disabled" @input="search = ($event.target as HTMLInputElement).value" @keydown.enter.prevent />
-        <div v-if="matching.length" class="tag-selector-list"><div v-for="tag in matching" :key="tag.id" class="tag-selector-row"><span v-if="modelValue.some(value => normalize(value) === normalize(tag.name))" class="tag-selected">{{ tag.name }} ✓</span><button v-else type="button" :aria-label="`Seleccionar etiqueta ${tag.name}`" :disabled="disabled" @click="select(tag.name)">{{ tag.name }}</button><button type="button" :aria-label="`Eliminar etiqueta ${tag.name}`" :disabled="disabled" @click="openDelete(tag, $event)">×</button></div></div>
+        <div v-if="matching.length" class="tag-selector-list"><div v-for="tag in matching" :key="tag.id" class="tag-selector-row"><span v-if="modelValue.some(value => normalize(value) === normalize(tag.name))" class="tag-selected">{{ tag.name }} ✓</span><button v-else type="button" class="tag-selector-option" :aria-label="`Seleccionar etiqueta ${tag.name}`" :disabled="disabled" @click="select(tag.name)">{{ tag.name }}</button><button type="button" class="remove-button" :aria-label="`Eliminar etiqueta ${tag.name}`" :disabled="disabled" @click="openDelete(tag, $event)">Eliminar</button></div></div>
         <small v-else>No hay etiquetas disponibles.</small>
       </div>
     </div>
@@ -101,10 +101,11 @@ defineExpose({ closeSelector })
 .material-tag-error { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px }
 .tag-selector-options { display: grid; gap: 6px; margin-top: 8px }
 .tag-selector-list { display: grid; max-height: 150px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px }
-.tag-selector-row { display: flex; min-width: 0 }
-.tag-selector-row button:first-child { flex: 1; min-width: 0; overflow-wrap: anywhere }
+.tag-selector-row { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 4px 6px }
+.tag-selector-option { flex: 1; min-width: 0; overflow-wrap: anywhere }
 .tag-selected { flex: 1; min-width: 0; overflow-wrap: anywhere; padding: 8px 12px }
-.tag-selector-list button { min-height: 44px; text-align: left; padding: 8px 12px; border: 0; background: transparent; color: var(--ink); cursor: pointer }
-.tag-selector-list button:hover, .tag-selector-list button:focus-visible { background: var(--mint) }
-.tag-selector-list button:focus-visible, .material-edit-tags button:focus-visible { outline: 2px solid var(--brand-green); outline-offset: -2px }
+.tag-selector-list .tag-selector-option { min-height: 44px; text-align: left; padding: 8px 12px; border: 0; background: transparent; color: var(--ink); cursor: pointer; border-radius: 6px }
+.tag-selector-list .tag-selector-option:hover, .tag-selector-list .tag-selector-option:focus-visible { background: var(--mint) }
+.tag-selector-list .tag-selector-option:focus-visible, .tag-selector-list .remove-button:focus-visible, .material-edit-tags button:focus-visible { outline: 2px solid var(--brand-green); outline-offset: -2px }
+.tag-selector-row .remove-button { flex: 0 0 auto; width: auto; height: auto; white-space: nowrap; border-radius: 8px; background: #f3deda; color: var(--danger); font-size: 12px; font-weight: 700; padding: 7px 10px }
 </style>

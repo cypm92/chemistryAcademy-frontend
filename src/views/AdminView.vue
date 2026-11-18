@@ -20,6 +20,15 @@ const folderSelection = ref<number | null>(null)
 const folderForm = ref<{ name: string; parent_id: number | null }>({ name: '', parent_id: null })
 const editingFolderId = ref<number | null>(null)
 const folderNameInput = ref<HTMLInputElement | null>(null)
+const folderModalOpen = ref(false)
+const folderReturnFocus = ref<HTMLElement | null>(null)
+const deletingFolder = ref<Folder | null>(null)
+const folderDeleteBusy = ref(false)
+const folderDeleteError = ref('')
+const cancelFolderDeleteButton = ref<HTMLButtonElement | null>(null)
+const confirmFolderDeleteButton = ref<HTMLButtonElement | null>(null)
+const newFolderButton = ref<HTMLButtonElement | null>(null)
+let folderDeleteOrigin: HTMLElement | null = null
 const folderSearch = ref('')
 const expandedFolderIds = ref<number[]>([])
 const activeSection = ref<'students' | 'folders' | 'resources' | 'settings'>(new URLSearchParams(window.location.search).has('microsoft') ? 'settings' : 'students')
@@ -165,15 +174,38 @@ async function saveFolder() {
     cancelEditFolder()
   } catch (e) { error.value = errorMessage(e) }
 }
-async function editFolder(folder: Folder) {
+async function openCreateFolder(event: Event) {
+  folderReturnFocus.value = event.currentTarget as HTMLElement
+  editingFolderId.value = null
+  folderForm.value = { name: '', parent_id: null }
+  folderModalOpen.value = true
+  await nextTick()
+  folderNameInput.value?.focus()
+}
+async function editFolder(folder: Folder, event: Event) {
+  folderReturnFocus.value = event.currentTarget as HTMLElement
   editingFolderId.value = folder.id
   folderForm.value = { name: folder.name, parent_id: folder.parent_id }
+  folderModalOpen.value = true
   await nextTick()
-  folderNameInput.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  folderNameInput.value?.focus({ preventScroll: true })
+  folderNameInput.value?.focus()
   folderNameInput.value?.select()
 }
-function cancelEditFolder() { editingFolderId.value = null; folderForm.value = { name: '', parent_id: null } }
+function cancelEditFolder() {
+  editingFolderId.value = null
+  folderForm.value = { name: '', parent_id: null }
+  folderModalOpen.value = false
+  void nextTick(() => folderReturnFocus.value?.focus())
+}
+function folderModalKeydown(event: KeyboardEvent, close: () => void) {
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close(); return }
+  if (event.key !== 'Tab') return
+  const focusable = [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]')]
+  if (!focusable.length) return
+  const first = focusable[0]!, last = focusable[focusable.length - 1]!
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus() }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+}
 function folderBranchIds(folderId: number): Set<number> {
   const ids = new Set([folderId])
   const pending = [folderId]
@@ -195,9 +227,38 @@ function toggleFolder(folderId: number) {
   const branchIds = folderBranchIds(folderId)
   expandedFolderIds.value = expandedFolderIds.value.filter((id) => !branchIds.has(id))
 }
-function removeFolder(folder: Folder) {
-  if (!window.confirm(`¿Eliminar la carpeta “${folder.path}”? Sus subcarpetas también se eliminarán. Los archivos quedarán sin carpeta.`)) return
-  return act(() => api.delete(`/admin/folders/${folder.id}`), 'Carpeta eliminada correctamente.')
+function openFolderDelete(folder: Folder, event: Event) {
+  folderDeleteOrigin = event.currentTarget as HTMLElement
+  deletingFolder.value = folder; folderDeleteError.value = ''
+  void nextTick(() => cancelFolderDeleteButton.value?.focus())
+}
+function cancelFolderDelete() {
+  if (folderDeleteBusy.value) return
+  deletingFolder.value = null
+  void nextTick(() => folderDeleteOrigin?.focus())
+}
+function folderDeleteKeydown(event: KeyboardEvent) {
+  event.stopPropagation()
+  if (event.key === 'Escape') { event.preventDefault(); cancelFolderDelete(); return }
+  if (event.key !== 'Tab') return
+  if (event.shiftKey && document.activeElement === cancelFolderDeleteButton.value) { event.preventDefault(); confirmFolderDeleteButton.value?.focus() }
+  else if (!event.shiftKey && document.activeElement === confirmFolderDeleteButton.value) { event.preventDefault(); cancelFolderDeleteButton.value?.focus() }
+}
+async function confirmFolderDelete() {
+  if (!deletingFolder.value || folderDeleteBusy.value) return
+  const folder = deletingFolder.value
+  folderDeleteBusy.value = true; folderDeleteError.value = ''
+  try {
+    await api.delete(`/admin/folders/${folder.id}`)
+    await load()
+    notice.value = 'Carpeta eliminada correctamente.'
+    deletingFolder.value = null
+    void nextTick(() => {
+      if (folderDeleteOrigin?.isConnected) folderDeleteOrigin.focus()
+      else newFolderButton.value?.focus()
+    })
+  } catch (e) { folderDeleteError.value = errorMessage(e) }
+  finally { folderDeleteBusy.value = false }
 }
 onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResources()]).catch((e) => error.value = errorMessage(e)))
 </script>
@@ -208,11 +269,29 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
     <div class="admin-layout"><nav class="admin-tabs" role="tablist" aria-label="Secciones de administración"><button :class="{ active: activeSection === 'students' }" type="button" role="tab" :aria-selected="activeSection === 'students'" @click="activeSection = 'students'">Usuarios</button><button :class="{ active: activeSection === 'folders' }" type="button" role="tab" :aria-selected="activeSection === 'folders'" @click="activeSection = 'folders'">Carpetas y Archivos</button><button :class="{ active: activeSection === 'resources' }" type="button" role="tab" :aria-selected="activeSection === 'resources'" @click="activeSection = 'resources'">Recursos públicos</button><button :class="{ active: activeSection === 'settings' }" type="button" role="tab" :aria-selected="activeSection === 'settings'" @click="activeSection = 'settings'">Notificaciones</button></nav><main class="admin-content">
     <div v-if="activeSection === 'folders'" class="admin-tab-grid">
 
-      <form v-if="activeSection === 'folders'" class="panel" @submit.prevent="uploadFile"><h2>Subir material</h2><p>PDF, MP4, WebM o MOV. Elige una carpeta creada previamente.</p><label>Título<input v-model="upload.title" required /></label><label>Carpeta<FolderTreePicker v-model="folderSelection" :folders="folders" :allow-root="false" /></label><MaterialTagPicker v-model="uploadTags" v-model:pending="uploadPendingTag" v-model:open="uploadTagSelectorOpen" :available="tags" @deleted="tagDeleted" /><label>Descripción<textarea v-model="upload.description" rows="3" /></label><label class="file-input">Archivo<input type="file" accept=".pdf,video/*" required @change="upload.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label><button class="primary">Subir material</button></form>
+      <form class="panel folders-upload-panel" @submit.prevent="uploadFile"><h2>Subir material</h2><p>PDF, MP4, WebM o MOV. Elige una carpeta creada previamente.</p><label>Título<input v-model="upload.title" required /></label><label>Carpeta<FolderTreePicker v-model="folderSelection" :folders="folders" :allow-root="false" /></label><MaterialTagPicker v-model="uploadTags" v-model:pending="uploadPendingTag" v-model:open="uploadTagSelectorOpen" :available="tags" @deleted="tagDeleted" /><label>Descripción<textarea v-model="upload.description" rows="3" /></label><label class="file-input">Archivo<input type="file" accept=".pdf,video/*" required @change="upload.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label><button class="primary">Subir material</button></form>
 
-      <section v-if="activeSection === 'folders'" class="panel folders-admin-panel">
-        <h2>{{ editingFolderId ? 'Editar carpeta' : 'Crear carpeta' }}</h2><p>{{ editingFolder ? `Cambia el nombre o la ubicación de «${editingFolder.path}».` : 'Añade una carpeta raíz o una subcarpeta a la biblioteca.' }}</p>
-        <form @submit.prevent="saveFolder">
+      <section class="panel folders-explorer-panel">
+        <div class="folders-explorer-head"><div><h2>Carpetas</h2><p>Busca, despliega, edita o elimina cualquier carpeta de la biblioteca.</p></div><div class="folders-explorer-head-actions"><span>{{ folders.length }} {{ folders.length === 1 ? 'carpeta' : 'carpetas' }}</span><button ref="newFolderButton" class="primary small new-folder-button" type="button" @click="openCreateFolder($event)">Nueva carpeta</button></div></div>
+        <label class="folder-search"><span>⌕</span><input v-model="folderSearch" placeholder="Buscar carpeta..." /></label>
+        <div class="folder-admin-list">
+          <article v-for="row in folderRows" :key="row.folder.id" :style="{ '--folder-level': row.depth }">
+            <button v-if="row.hasChildren" class="folder-toggle" type="button" @click="toggleFolder(row.folder.id)">{{ expandedFolderIds.includes(row.folder.id) ? '⌄' : '›' }}</button><span v-else class="folder-toggle-placeholder" aria-hidden="true"></span>
+            <span class="folder-color-dot" :style="{ backgroundColor: row.folder.effective_color || 'var(--brand-green)' }"></span><span class="folder-row-name"><b>{{ row.folder.name }}</b><small v-if="folderSearch">{{ row.folder.path }}</small></span>
+            <div v-if="!(row.folder.name === 'Sin clasificar' && row.folder.parent_id === null)" class="folder-row-actions"><button class="edit-button" :aria-label="`Editar la carpeta ${row.folder.name}`" @click="editFolder(row.folder, $event)">Editar</button><button class="remove-button" title="Eliminar carpeta" :aria-label="`Eliminar la carpeta ${row.folder.name}`" @click="openFolderDelete(row.folder, $event)">Eliminar</button></div>
+          </article>
+          <p v-if="!folderRows.length" class="folder-no-results">No se han encontrado carpetas.</p>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="activeSection === 'folders' && folderModalOpen" class="modal folder-modal-overlay" @click.self="cancelEditFolder" @keydown="folderModalKeydown($event, cancelEditFolder)">
+      <section class="folder-modal" role="dialog" aria-modal="true" aria-labelledby="folder-modal-title">
+        <header>
+          <div><h2 id="folder-modal-title">{{ editingFolderId ? 'Editar carpeta' : 'Crear carpeta' }}</h2><p>{{ editingFolder ? `Cambia el nombre o la ubicación de «${editingFolder.path}».` : 'Añade una carpeta raíz o una subcarpeta a la biblioteca.' }}</p></div>
+          <button type="button" class="icon-button" aria-label="Cerrar formulario de carpeta" @click="cancelEditFolder">×</button>
+        </header>
+        <form class="folder-modal-form" @submit.prevent="saveFolder">
           <label>Nombre<input ref="folderNameInput" v-model="folderForm.name" required placeholder="Ej. Formulación" /></label>
           <label>Dentro de
             <FolderTreePicker :key="editingFolderId ?? 'create'" v-model="folderForm.parent_id" :folders="folders" :excluded-folder-id="editingFolderId" />
@@ -220,9 +299,22 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
           </label>
           <div class="folder-form-actions">
             <button class="primary">{{ editingFolderId ? 'Guardar cambios' : 'Crear carpeta' }}</button>
-            <button v-if="editingFolderId" type="button" class="secondary" @click="cancelEditFolder">Cancelar</button>
+            <button type="button" class="secondary" @click="cancelEditFolder">Cancelar</button>
           </div>
         </form>
+      </section>
+    </div>
+    <div v-if="deletingFolder" class="modal folder-color-modal folder-delete-modal" role="dialog" aria-modal="true" aria-label="Eliminar carpeta" @keydown="folderDeleteKeydown" @click.self="cancelFolderDelete">
+      <section class="folder-color-card folder-delete-card">
+        <header><h2>¿Eliminar la carpeta «{{ deletingFolder.path }}»?</h2></header>
+        <div class="folder-color-body">
+          <p>Sus subcarpetas también se eliminarán. Los archivos quedarán sin carpeta.</p>
+          <p v-if="folderDeleteError" class="alert" role="alert">{{ folderDeleteError }}</p>
+        </div>
+        <footer>
+          <button ref="cancelFolderDeleteButton" type="button" class="secondary" :disabled="folderDeleteBusy" @click="cancelFolderDelete">Cancelar</button>
+          <button ref="confirmFolderDeleteButton" type="button" class="danger" :disabled="folderDeleteBusy" @click="confirmFolderDelete">{{ folderDeleteBusy ? 'Eliminando…' : 'Eliminar carpeta' }}</button>
+        </footer>
       </section>
     </div>
     <div v-if="activeSection === 'resources'" class="resource-admin-grid">
@@ -291,18 +383,6 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
       <div v-if="contactRequests.length" class="contact-requests-list"><article v-for="request in contactRequests" :key="request.id"><div><b>{{ request.name }}</b><small>{{ request.contact }} · {{ request.need }}</small></div><p>{{ request.message || 'Sin mensaje adicional.' }}</p><time>{{ new Date(request.created_at).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }) }}</time></article></div>
       <p v-else class="contact-requests-empty">No hay solicitudes de contacto nuevas.</p>
     </section>
-    <section v-if="activeSection === 'folders'" class="folders-explorer-panel">
-      <div class="folders-explorer-head"><div><h2>Carpetas</h2><p>Busca, despliega, edita o elimina cualquier carpeta de la biblioteca.</p></div><span>{{ folders.length }} {{ folders.length === 1 ? 'carpeta' : 'carpetas' }}</span></div>
-      <label class="folder-search"><span>⌕</span><input v-model="folderSearch" placeholder="Buscar carpeta..." /></label>
-      <div class="folder-admin-list">
-        <article v-for="row in folderRows" :key="row.folder.id" :style="{ '--folder-level': row.depth }">
-          <button v-if="row.hasChildren" class="folder-toggle" type="button" @click="toggleFolder(row.folder.id)">{{ expandedFolderIds.includes(row.folder.id) ? '⌄' : '›' }}</button><span v-else class="folder-toggle-placeholder" aria-hidden="true"></span>
-          <span class="folder-color-dot" :style="{ backgroundColor: row.folder.effective_color || 'var(--brand-green)' }"></span><span class="folder-row-name"><b>{{ row.folder.name }}</b><small v-if="folderSearch">{{ row.folder.path }}</small></span>
-          <div v-if="!(row.folder.name === 'Sin clasificar' && row.folder.parent_id === null)" class="folder-row-actions"><button class="edit-button" @click="editFolder(row.folder)">Editar</button><button class="remove-button" title="Eliminar carpeta" @click="removeFolder(row.folder)">×</button></div>
-        </article>
-        <p v-if="!folderRows.length" class="folder-no-results">No se han encontrado carpetas.</p>
-      </div>
-    </section>
     </main></div>
   </section>
 </template>
@@ -311,10 +391,68 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
 .admin-page { max-width: none; height: auto; margin: 0; padding: 12px 24px; }
 .admin-layout { min-width: 0; }
 .admin-tabs { height: auto; max-width: 900px; margin: 0 auto 8px; }
-.admin-tabs button { min-width: 0; cursor: pointer; }
+.admin-tabs button { min-width: 0; cursor: pointer; white-space: nowrap; }
 .admin-content { min-width: 0; padding: 8px 0; }
 @media (min-width: 801px) {
   .admin-page-students :deep(.students-embedded) { margin-top: 0; }
 }
 @media (max-width: 800px) { .admin-page { padding: 16px; } .admin-content { padding: 16px 0; } .admin-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .admin-tabs button { padding: 10px 6px; } }
+
+/* Carpetas y Archivos: layout 30/70 en escritorio, apilado en pantallas estrechas.
+   El .admin-page { height:auto } genérico de arriba (pensado para Usuarios/Ajustes,
+   que crecen con su contenido) debe quedar anulado aquí para que esta sección vuelva
+   a usar el alto fijo de .admin-page de main.css, sin scroll de página. */
+@media (min-width: 901px) {
+  .admin-page.admin-page-folders { height: calc(100dvh - 82px); overflow: hidden; display: flex; flex-direction: column; }
+  .admin-page.admin-page-folders .admin-layout { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  /* .admin-tabs queda como hijo flex de .admin-layout en esta pestaña (no en las otras,
+     que usan flujo de bloque normal). Con margin:0 auto, el stretch por defecto del eje
+     cruzado queda desactivado por los márgenes auto (spec flexbox §8.1) y el ancho pasa
+     a calcularse por contenido (~540px) en vez de llenar hasta max-width:900px como en
+     flujo normal, encogiendo la barra y partiendo "Carpetas y Archivos"/"Recursos
+     públicos" en dos líneas. width explícito (no "auto") evita ese stretch condicional
+     y reproduce el mismo ancho resultante que en las otras 3 pestañas. */
+  .admin-page.admin-page-folders .admin-tabs { flex: 0 0 auto; width: min(900px, 100%); }
+  .admin-page.admin-page-folders .admin-content { flex: 1; min-height: 0; }
+  /* .admin-tab-grid hereda aquí "height:calc(100% - 62px)" de main.css, pensado para
+     cuando .admin-tab-grid es hermano directo de .admin-tabs. Aquí .admin-tab-grid está
+     un nivel más anidado (dentro de .admin-content, que ya excluye el alto de .admin-tabs
+     por el flex de arriba), así que esa resta de 62px sobra: debe ocupar el 100%. */
+  .admin-page.admin-page-folders .admin-tab-grid { height: 100%; }
+}
+.folders-explorer-head { margin: 0; padding: 0 0 14px; border: 0; }
+.folders-explorer-head-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.new-folder-button { width: auto; margin: 0; white-space: nowrap; }
+.folders-upload-panel { display: flex; flex-direction: column; }
+/* t_edd6a519: reducir espaciados verticales de "Subir material" para intentar que quepa
+   sin scroll interno propio, sin tocar layout 30/70 ni el popup de carpeta.
+   La regla de <p> tenía margin-bottom:10px ADEMÁS del margin-top:10px del siguiente
+   label: en flex column los márgenes de hermanos no colapsan, así que sumaban 20px
+   en vez de 10px. Se quita ese margin-bottom (el espaciado lo da ya el label) y se
+   recorta un poco el margin de cada label para ganar margen de seguridad. */
+.folders-upload-panel { padding: 18px 22px; }
+.folders-upload-panel h2 { margin: 0 0 4px; }
+.folders-upload-panel > p { margin: 0; }
+.folders-upload-panel label { margin: 8px 0 4px; }
+.folders-upload-panel input, .folders-upload-panel select, .folders-upload-panel textarea { padding: 9px 10px; }
+.folders-upload-panel textarea { min-height: 54px; }
+.folders-upload-panel .primary { margin-top: 10px; padding: 11px 16px; }
+.folders-upload-panel :deep(.material-tags-picker) { gap: 8px; margin: 2px 0; }
+.folders-upload-panel :deep(.material-tags-picker label) { margin: 6px 0 4px; }
+
+/* Botones de fila normalizados como en Gestión de usuarios (StudentsView .row-actions) */
+.folder-row-actions .edit-button, .folder-row-actions .remove-button { width: auto; height: auto; flex: 0 0 auto; white-space: nowrap; border-radius: 8px; font-size: 12px; font-weight: 700; padding: 7px 10px; }
+.folder-row-actions .edit-button { background: #fff0c7; color: #704b00; }
+.folder-row-actions .remove-button { background: #f3deda; color: var(--danger); }
+
+/* Popup de crear/editar carpeta, mismo patrón que .new-student-overlay/.new-student-modal de StudentsView */
+.folder-modal-overlay { z-index: 80; }
+.folder-modal { width: min(520px, 100%); max-height: 90vh; overflow: auto; background: var(--paper); border-radius: 18px; }
+.folder-modal header { display: flex; justify-content: space-between; gap: 20px; padding: 22px 24px; border-bottom: 1px solid var(--line); }
+.folder-modal header h2 { margin: 0; }
+.folder-modal header p { margin: 6px 0 0; }
+.folder-modal-form { display: grid; gap: 14px; padding: 24px; }
+.folder-modal-form label { display: grid; gap: 5px; }
+.folder-modal .folder-parent-options { position: static; margin-top: 7px; }
+.folder-modal-form label:has(.folder-parent-trigger[aria-expanded="true"]) > small { visibility: hidden; }
 </style>
