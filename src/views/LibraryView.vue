@@ -15,6 +15,7 @@ const selected = ref<Material | null>(null)
 const selectedFolderPath = ref('')
 const expandedFolderPaths = ref<string[]>([])
 const searchQuery = ref('')
+const searchMode = ref<'text' | 'tags'>('text')
 const searchAllFolders = ref(false)
 const error = ref('')
 const notice = ref('')
@@ -112,14 +113,25 @@ function findFolder(nodes: LibraryFolderNode[], path: string): LibraryFolderNode
 }
 const activeFolder = computed(() => findFolder(folderTree.value, selectedFolderPath.value))
 const breadcrumbs = computed(() => activeFolder.value?.path.split(' / ') || [])
+function normalizeSearch(value: string): string {
+  return value.trim().toLocaleLowerCase('es')
+}
+const effectiveQuery = computed(() => {
+  const rawQuery = normalizeSearch(searchQuery.value)
+  return searchMode.value === 'tags' ? rawQuery.replace(/^#/, '').trim() : rawQuery
+})
 const filteredMaterials = computed(() => {
-  const query = searchQuery.value.trim().toLocaleLowerCase('es')
+  const query = effectiveQuery.value
   const source = searchAllFolders.value ? materials.value : (activeFolder.value?.materials || [])
   if (!query) return source
-  return source.filter((material) => [material.title, material.description, material.filename, material.folder?.path]
-    .some((value) => value?.toLocaleLowerCase('es').includes(query)))
+  return source.filter((material) => {
+    const searchable = searchMode.value === 'text'
+      ? [material.title, material.description, material.filename]
+      : (material.tags || []).map(tag => tag.name)
+    return searchable.some(value => normalizeSearch(value || '').includes(query))
+  })
 })
-const fileSectionTitle = computed(() => searchQuery.value.trim() && searchAllFolders.value ? 'Resultados en todas las carpetas' : 'Archivos')
+const fileSectionTitle = computed(() => effectiveQuery.value && searchAllFolders.value ? 'Resultados en todas las carpetas' : 'Archivos')
 
 function ancestorPaths(path: string): string[] {
   const parts = path.split(' / ')
@@ -202,9 +214,9 @@ onMounted(async () => { try { await loadMaterials() } catch (e) { error.value = 
       <aside class="file-sidebar"><div class="file-sidebar-head"><span class="file-sidebar-mark">⌑</span><b>Mis carpetas</b></div><LibraryFolderTree :nodes="folderTree" :selected-path="selectedFolderPath" :expanded-paths="expandedFolderPaths" :admin="session.user?.role === 'admin'" @select="chooseSidebarFolder" @edit-color="editFolderColor" /></aside>
       <main class="file-workspace">
         <div class="workspace-top"><div><div class="breadcrumbs"><button v-for="(crumb, index) in breadcrumbs" :key="index" @click="selectFolder(breadcrumbs.slice(0, index + 1).join(' / '))">{{ crumb }}</button></div><h1>{{ activeFolder.name }}</h1><p>{{ activeFolder.materialCount }} {{ activeFolder.materialCount === 1 ? 'material disponible' : 'materiales disponibles' }}</p></div><div class="workspace-summary"><b>{{ activeFolder.children.length }}</b><span>{{ activeFolder.children.length === 1 ? 'subcarpeta' : 'subcarpetas' }}</span></div></div>
-        <div class="file-search"><span>⌕</span><input v-model="searchQuery" placeholder="Buscar archivos…" /><label><input v-model="searchAllFolders" type="checkbox" /> Buscar en todas las carpetas</label></div>
-        <section v-if="!searchQuery && activeFolder.children.length" class="folder-section"><div class="section-label">Carpetas</div><div class="folder-tiles"><article v-for="folder in activeFolder.children" :key="folder.path" class="folder-tile" :style="{ '--folder-color': folder.color || 'var(--brand-green)' }"><button v-if="session.user?.role === 'admin' && folder.id && !(folder.name === 'Sin clasificar' && folder.parentId === null)" class="folder-tile-color" type="button" :aria-label="`Editar color de ${folder.name}`" title="Editar color" @click.stop="editFolderColor(folder)"><span></span></button><button class="folder-tile-open" @click="selectFolder(folder.path, folder.children.length > 0)"><span class="tile-folder-icon">⌑</span><span><b>{{ folder.name }}</b><small>{{ folder.materialCount }} {{ folder.materialCount === 1 ? 'archivo' : 'archivos' }}</small></span><span class="tile-arrow">›</span></button></article></div></section>
-        <section class="file-section"><div class="section-label">{{ fileSectionTitle }}</div><div v-if="filteredMaterials.length" class="file-list"><LibraryMaterialCard v-for="(item, index) in filteredMaterials" :key="item.id" :item="item" :sharing-pending="sharingPending.includes(item.id)" :sharing-failed="sharingFailed.includes(item.id)" :can-reorder="!searchQuery && !searchAllFolders && selectedFolderPath !== '__favorites__'" :first="index === 0" :last="index === filteredMaterials.length - 1" :ordering="ordering" @retry-sharing="refreshSharing(item.id)" @reorder="reorderMaterial" @open="selected = $event" @move="openMoveMaterial" @edit="openEditMaterial" @changed="reloadMaterials" @notice="notice = $event" @error="error = $event" /></div><div v-else class="file-empty">{{ searchQuery ? 'No se han encontrado archivos.' : 'Esta carpeta no contiene archivos directamente.' }}</div></section>
+        <div class="file-search"><svg class="search-icon" aria-hidden="true" viewBox="0 0 24 24" focusable="false"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 5 5"/></svg><label class="search-query-label"><input v-model="searchQuery" type="search" aria-label="Buscar materiales" :placeholder="searchMode === 'text' ? 'Buscar por texto…' : 'Buscar por etiqueta…'" /></label><div class="search-mode" role="group" aria-label="Tipo de búsqueda"><button type="button" :aria-pressed="searchMode === 'text'" @click="searchMode = 'text'">Archivos</button><button type="button" :aria-pressed="searchMode === 'tags'" @click="searchMode = 'tags'">Etiquetas</button></div><label class="search-scope"><input v-model="searchAllFolders" type="checkbox" /> Buscar en todas las carpetas</label></div>
+        <section v-if="!effectiveQuery && activeFolder.children.length" class="folder-section"><div class="section-label">Carpetas</div><div class="folder-tiles"><article v-for="folder in activeFolder.children" :key="folder.path" class="folder-tile" :style="{ '--folder-color': folder.color || 'var(--brand-green)' }"><button v-if="session.user?.role === 'admin' && folder.id && !(folder.name === 'Sin clasificar' && folder.parentId === null)" class="folder-tile-color" type="button" :aria-label="`Editar color de ${folder.name}`" title="Editar color" @click.stop="editFolderColor(folder)"><span></span></button><button class="folder-tile-open" @click="selectFolder(folder.path, folder.children.length > 0)"><span class="tile-folder-icon">⌑</span><span><b>{{ folder.name }}</b><small>{{ folder.materialCount }} {{ folder.materialCount === 1 ? 'archivo' : 'archivos' }}</small></span><span class="tile-arrow">›</span></button></article></div></section>
+        <section class="file-section"><div class="section-label">{{ fileSectionTitle }}</div><div v-if="filteredMaterials.length" class="file-list"><LibraryMaterialCard v-for="(item, index) in filteredMaterials" :key="item.id" :item="item" :sharing-pending="sharingPending.includes(item.id)" :sharing-failed="sharingFailed.includes(item.id)" :can-reorder="!effectiveQuery && !searchAllFolders && selectedFolderPath !== '__favorites__'" :first="index === 0" :last="index === filteredMaterials.length - 1" :ordering="ordering" @retry-sharing="refreshSharing(item.id)" @reorder="reorderMaterial" @open="selected = $event" @move="openMoveMaterial" @edit="openEditMaterial" @changed="reloadMaterials" @notice="notice = $event" @error="error = $event" /></div><div v-else class="file-empty">{{ effectiveQuery ? 'No se han encontrado archivos.' : 'Esta carpeta no contiene archivos directamente.' }}</div></section>
       </main>
     </div>
     <div v-else class="empty"><b>Aún no tienes materiales activos.</b><p>Tu profesora te dará acceso cuando estén preparados.</p></div>
