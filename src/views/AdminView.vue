@@ -6,6 +6,7 @@ import FolderTreePicker from '../components/FolderTreePicker.vue'
 import MaterialTagPicker from '../components/MaterialTagPicker.vue'
 import StudentsView from './StudentsView.vue'
 import MicrosoftIntegration from '../components/MicrosoftIntegration.vue'
+import HomeSettings from '../components/HomeSettings.vue'
 
 const folders = ref<Folder[]>([])
 const tags = ref<Tag[]>([])
@@ -43,6 +44,20 @@ const publicExamSubjects = publicSubjects.filter(subject => subject.value !== 'o
 const publicCommunities = ['Andalucía', 'Aragón', 'Asturias', 'Baleares', 'Canarias', 'Cantabria', 'Castilla-La Mancha', 'Castilla y León', 'Cataluña', 'C. Valenciana', 'Extremadura', 'Galicia', 'La Rioja', 'Madrid', 'Murcia', 'Navarra', 'País Vasco']
 const resourcesLoading = ref(false)
 const resourceBusy = ref(false)
+const resourceTabs = ['exam', 'document', 'video'] as const
+const resourceTab = ref<(typeof resourceTabs)[number]>('exam')
+function resourceTabKeydown(event: KeyboardEvent) {
+  const index = resourceTabs.indexOf(resourceTab.value)
+  let next = index
+  if (event.key === 'ArrowRight') next = (index + 1) % resourceTabs.length
+  else if (event.key === 'ArrowLeft') next = (index + resourceTabs.length - 1) % resourceTabs.length
+  else if (event.key === 'Home') next = 0
+  else if (event.key === 'End') next = resourceTabs.length - 1
+  else return
+  event.preventDefault()
+  resourceTab.value = resourceTabs[next]!
+  void nextTick(() => document.getElementById(`resource-tab-${resourceTab.value}`)?.focus())
+}
 const reminderPreset = ref('1440')
 
 const contactRequests = ref<Array<{ id: number; name: string; contact: string; need: string; message: string; created_at: string }>>([])
@@ -266,7 +281,7 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
 <template>
   <section :class="['page', 'admin-page', { 'admin-page-students': activeSection === 'students', 'admin-page-folders': activeSection === 'folders', 'admin-page-settings': activeSection === 'settings', 'admin-page-resources': activeSection === 'resources' }]">
     <p v-if="notice" class="success-alert">{{ notice }}</p><p v-if="error" class="alert">{{ error }}</p>
-    <div class="admin-layout"><nav class="admin-tabs" role="tablist" aria-label="Secciones de administración"><button :class="{ active: activeSection === 'students' }" type="button" role="tab" :aria-selected="activeSection === 'students'" @click="activeSection = 'students'">Usuarios</button><button :class="{ active: activeSection === 'folders' }" type="button" role="tab" :aria-selected="activeSection === 'folders'" @click="activeSection = 'folders'">Carpetas y Archivos</button><button :class="{ active: activeSection === 'resources' }" type="button" role="tab" :aria-selected="activeSection === 'resources'" @click="activeSection = 'resources'">Recursos públicos</button><button :class="{ active: activeSection === 'settings' }" type="button" role="tab" :aria-selected="activeSection === 'settings'" @click="activeSection = 'settings'">Notificaciones</button></nav><main class="admin-content">
+    <div class="admin-layout"><nav class="admin-tabs" role="tablist" aria-label="Secciones de administración"><button :class="{ active: activeSection === 'students' }" type="button" role="tab" :aria-selected="activeSection === 'students'" @click="activeSection = 'students'">Usuarios</button><button :class="{ active: activeSection === 'folders' }" type="button" role="tab" :aria-selected="activeSection === 'folders'" @click="activeSection = 'folders'">Carpetas y Archivos</button><button :class="{ active: activeSection === 'resources' }" type="button" role="tab" :aria-selected="activeSection === 'resources'" @click="activeSection = 'resources'">Gestionar Web inicio</button><button :class="{ active: activeSection === 'settings' }" type="button" role="tab" :aria-selected="activeSection === 'settings'" @click="activeSection = 'settings'">Notificaciones</button></nav><main class="admin-content">
     <div v-if="activeSection === 'folders'" class="admin-tab-grid">
 
       <form class="panel folders-upload-panel" @submit.prevent="uploadFile"><h2>Subir material</h2><p>PDF, MP4, WebM o MOV. Elige una carpeta creada previamente.</p><label>Título<input v-model="upload.title" required /></label><label>Carpeta<FolderTreePicker v-model="folderSelection" :folders="folders" :allow-root="false" /></label><MaterialTagPicker v-model="uploadTags" v-model:pending="uploadPendingTag" v-model:open="uploadTagSelectorOpen" :available="tags" @deleted="tagDeleted" /><label>Descripción<textarea v-model="upload.description" rows="3" /></label><label class="file-input">Archivo<input type="file" accept=".pdf,video/*" required @change="upload.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label><button class="primary">Subir material</button></form>
@@ -318,7 +333,11 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
       </section>
     </div>
     <div v-if="activeSection === 'resources'" class="resource-admin-grid">
-      <form class="panel" @submit.prevent="uploadPublicExam">
+      <section class="panel resource-upload-card">
+        <div class="admin-tabs resource-upload-tabs" role="tablist" aria-label="Tipo de recurso" @keydown="resourceTabKeydown">
+          <button v-for="tab in resourceTabs" :id="`resource-tab-${tab}`" :key="tab" :class="{ active: resourceTab === tab }" type="button" role="tab" :aria-selected="resourceTab === tab" :aria-controls="`resource-panel-${tab}`" :tabindex="resourceTab === tab ? 0 : -1" @click="resourceTab = tab">{{ tab === 'exam' ? 'Examen PAU' : tab === 'document' ? 'Formulario PDF' : 'Instagram' }}</button>
+        </div>
+      <form v-show="resourceTab === 'exam'" id="resource-panel-exam" role="tabpanel" aria-labelledby="resource-tab-exam" @submit.prevent="uploadPublicExam">
         <h2>Subir examen PAU</h2><p>El examen aparecerá en la pestaña Recursos, visible antes de iniciar sesión. Máximo 20 MB.</p>
         <label>Título<input v-model="publicExam.title" required maxlength="180" /></label>
         <label>Asignatura<select v-model="publicExam.subject"><option v-for="subject in publicExamSubjects" :key="subject.value" :value="subject.value">{{ subject.label }}</option></select></label>
@@ -326,7 +345,7 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
         <label>Archivo PDF<input type="file" accept="application/pdf,.pdf" required @change="publicExam.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label>
         <button class="primary" :disabled="resourceBusy">{{ resourceBusy ? 'Guardando…' : 'Subir PDF' }}</button>
       </form>
-      <form class="panel" @submit.prevent="uploadPublicDocument">
+      <form v-show="resourceTab === 'document'" id="resource-panel-document" role="tabpanel" aria-labelledby="resource-tab-document" @submit.prevent="uploadPublicDocument">
         <h2>Subir formulario PDF</h2><p>Documento público por asignatura.</p>
         <label>Título<input v-model="publicDocument.title" required maxlength="180" /></label>
         <label>Asignatura<select v-model="publicDocument.subject"><option v-for="subject in publicSubjects" :key="subject.value" :value="subject.value">{{ subject.label }}</option></select></label>
@@ -334,7 +353,7 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
         <label>Archivo PDF<input type="file" accept="application/pdf,.pdf" required @change="publicDocument.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label>
         <button class="primary" :disabled="resourceBusy">Subir formulario</button>
       </form>
-      <form class="panel" @submit.prevent="addInstagramVideo">
+      <form v-show="resourceTab === 'video'" id="resource-panel-video" role="tabpanel" aria-labelledby="resource-tab-video" @submit.prevent="addInstagramVideo">
         <h2>Añadir publicación de Instagram</h2><p>No se suben vídeos: pega el enlace permanente de una publicación o reel público.</p>
         <label>Título<input v-model="publicVideo.title" required maxlength="180" /></label>
         <label>Asignatura<select v-model="publicVideo.subject"><option v-for="subject in publicSubjects" :key="subject.value" :value="subject.value">{{ subject.label }}</option></select></label>
@@ -342,6 +361,8 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
         <label>Descripción<textarea v-model="publicVideo.description" rows="3" maxlength="5000" /></label>
         <button class="primary" :disabled="resourceBusy">{{ resourceBusy ? 'Guardando…' : 'Añadir enlace' }}</button>
       </form>
+      </section>
+      <HomeSettings />
       <section class="panel public-resource-list">
         <h2>Recursos publicados</h2><p>Estos elementos se muestran en la página pública de Recursos.</p>
         <p v-if="resourcesLoading" role="status">Cargando recursos…</p>
@@ -393,10 +414,18 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
 .admin-tabs { height: auto; max-width: 900px; margin: 0 auto 8px; }
 .admin-tabs button { min-width: 0; cursor: pointer; white-space: nowrap; }
 .admin-content { min-width: 0; padding: 8px 0; }
+.admin-page-resources .resource-admin-grid { max-height: none; overflow: visible; align-items: stretch; }
+.resource-upload-tabs { margin: 0 auto 20px; }
+@media (min-width: 901px) {
+  .resource-admin-grid :deep(.home-settings-card) { height: 0; min-height: 100%; overflow-y: auto; }
+}
+@media (max-width: 900px) {
+  .resource-admin-grid { grid-template-columns: minmax(0, 1fr); }
+}
 @media (min-width: 801px) {
   .admin-page-students :deep(.students-embedded) { margin-top: 0; }
 }
-@media (max-width: 800px) { .admin-page { padding: 16px; } .admin-content { padding: 16px 0; } .admin-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .admin-tabs button { padding: 10px 6px; } }
+@media (max-width: 800px) { .admin-page { padding: 16px; } .admin-content { padding: 16px 0; } .admin-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .admin-tabs button { padding: 10px 6px; white-space: normal; } }
 
 /* Carpetas y Archivos: layout 30/70 en escritorio, apilado en pantallas estrechas.
    El .admin-page { height:auto } genérico de arriba (pensado para Usuarios/Ajustes,
