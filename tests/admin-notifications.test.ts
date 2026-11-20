@@ -18,7 +18,7 @@ describe('solicitudes en notificaciones', () => {
     const nav = wrapper.get('nav.admin-tabs[aria-label="Secciones de administración"]')
     expect(wrapper.find('aside.admin-sidebar').exists()).toBe(false)
     const tabs = nav.findAll('[role="tab"]')
-    expect(tabs.map(tab => tab.text())).toEqual(['Usuarios', 'Carpetas y Archivos', 'Recursos públicos', 'Notificaciones'])
+    expect(tabs.map(tab => tab.text())).toEqual(['Usuarios', 'Carpetas y Archivos', 'Gestionar Web inicio', 'Notificaciones'])
     for (const tab of tabs) {
       await tab.trigger('click')
       expect(tab.attributes('aria-selected')).toBe('true')
@@ -51,7 +51,7 @@ it('impide seleccionar orgánica para exámenes sin retirarla de formularios y v
   vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/admin/public-resources' ? { exams: [], forms: [], videos: [], documents: [] } : url === '/admin/notification-settings' ? { reminder_interval_minutes: 1440 } : [] }) as any)
   const wrapper = mount(AdminView, { global: { stubs: { StudentsView: true, FolderTreePicker: true } } })
   await flushPromises()
-  await wrapper.findAll('[role="tab"]').find(tab => tab.text() === 'Recursos públicos')!.trigger('click')
+  await wrapper.findAll('[role="tab"]').find(tab => tab.text() === 'Gestionar Web inicio')!.trigger('click')
   const selects = wrapper.findAll('.resource-admin-grid select').filter(select => select.text().includes('Química'))
   expect(selects).toHaveLength(3)
   expect(selects[0].findAll('option').map(option => option.attributes('value'))).toEqual(['quimica', 'fisica', 'matematicas'])
