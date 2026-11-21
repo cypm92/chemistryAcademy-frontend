@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { api, errorMessage, protectedBlobUrl } from '../services/api'
 import { session, updateSessionUser } from '../services/session'
+import MicrosoftIntegration from '../components/MicrosoftIntegration.vue'
 
 const form = reactive({
   name: session.user?.name || '',
@@ -112,6 +113,7 @@ async function save() {
         <button class="primary" :disabled="saving">{{ saving ? 'Guardando…' : 'Guardar cambios' }}</button>
       </form>
     </div>
+    <MicrosoftIntegration v-if="session.user?.role === 'admin'" />
   </section>
 </template>
 

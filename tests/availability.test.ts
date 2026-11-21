@@ -15,6 +15,20 @@ const deferred = () => { let resolve!: (value: any) => void; let reject!: (reaso
 beforeEach(() => { vi.resetAllMocks(); vi.useFakeTimers(); vi.setSystemTime(new Date('2026-11-02T06:00:00Z')); session.user = { role: 'student' } as any })
 
 describe('disponibilidad', () => {
+  it('presenta alertas email en la agenda visible solo a administradores', async () => {
+    get.mockResolvedValue({ data: [] } as any)
+    const student = mount(ReservationsView); await flushPromises()
+    expect(student.text()).not.toContain('Alertas email'); student.unmount()
+    session.user = { role: 'admin' } as any
+    const admin = mount(ReservationsView); await flushPromises()
+    const trigger = admin.get('.calendar-head-actions .reminder-trigger')
+    expect(trigger.text()).toBe('Alertas email')
+    expect(trigger.get('svg').attributes('aria-hidden')).toBe('true')
+    expect(trigger.attributes('aria-pressed')).toBeUndefined()
+    expect(admin.get('.agenda-block-panel').text()).not.toContain('Alertas email')
+    expect(get).not.toHaveBeenCalledWith('/admin/notification-settings')
+    admin.unmount()
+  })
   it('muestra el contador total junto a la primera sección visible y en resultados vacíos', async () => {
     session.user = { role: 'admin' } as any
     const base = { user_id: 1, user_name: 'Alumno', user_email: 'alumno@example.com', topic: 'Química', starts_at: '2026-11-03T10:00:00Z', materials: [], is_historical: false }
