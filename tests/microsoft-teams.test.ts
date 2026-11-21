@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import AdminView from '../src/views/AdminView.vue'
+import ProfileView from '../src/views/ProfileView.vue'
 import ClassesView from '../src/views/ClassesView.vue'
 import MicrosoftIntegration from '../src/components/MicrosoftIntegration.vue'
 import { api } from '../src/services/api'
@@ -10,12 +10,24 @@ import { session } from '../src/services/session'
 vi.mock('../src/services/api', () => ({ api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() }, apiUrl: (s: string) => s, errorMessage: () => 'Error de red' }))
 const status = { configured: true, connected: false, account_label: null, needs_reconnect: false }
 const item = { id: 1, starts_at: '2026-11-04T10:00:00Z', ends_at: '2026-11-04T11:00:00Z', status: 'confirmed', management_status: null, is_historical: false, topic: 'Química', admin_comment: '', user_id: 2, user_name: 'Alumna', user_email: 'a@example.com', materials: [], teams_status: 'error' }
-beforeEach(() => { session.user = { role: 'admin' } as any; vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/admin/integrations/microsoft' ? status : url === '/admin/public-resources' ? { exams: [], forms: [], videos: [], documents: [] } : url === '/admin/notification-settings' ? { reminder_interval_minutes: 1440 } : url === '/admin/classes' ? [item] : [] }) as any) })
+beforeEach(() => { session.user = { role: 'admin', name: 'Admin', email: 'admin@example.test' } as any; vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/admin/integrations/microsoft' ? status : url === '/admin/public-resources' ? { exams: [], forms: [], videos: [], documents: [] } : url === '/admin/notification-settings' ? { reminder_interval_minutes: 1440 } : url === '/admin/classes' ? [item] : [] }) as any) })
 afterEach(() => { vi.clearAllMocks(); vi.unstubAllEnvs(); window.history.replaceState({}, '', '/') })
-it('ofrece conectar Microsoft en Notificaciones', async () => {
-  const w = mount(AdminView, { global: { stubs: { StudentsView: true, FolderTreePicker: true } } }); await flushPromises()
-  await w.findAll('[role="tab"]').find(x => x.text() === 'Notificaciones')!.trigger('click')
+it('ofrece Microsoft solo en perfil de administración', async () => {
+  const w = mount(ProfileView); await flushPromises()
   expect(w.text()).toContain('Microsoft Teams'); expect(w.text()).toContain('Desconectada'); expect(w.text()).toContain('Conectar')
+  w.unmount()
+  session.user = { role: 'guest', name: 'Prueba' } as any
+  const guest = mount(ProfileView); await flushPromises()
+  expect(guest.text()).not.toContain('Microsoft Teams'); guest.unmount()
+})
+it('presenta acciones de reconexión y desconexión en el perfil', async () => {
+  vi.mocked(api.get).mockResolvedValue({ data: { configured: true, connected: true, account_label: null, needs_reconnect: true } })
+  const w = mount(ProfileView); await flushPromises()
+  const actions = w.findAll('.microsoft-actions button')
+  expect(actions.map(button => button.text())).toEqual(['Reconectar', 'Desconectar'])
+  expect(actions[0].classes()).toContain('primary')
+  expect(actions[1].classes()).toContain('danger')
+  expect(w.get('.profile-card .primary').text()).toBe('Guardar cambios')
   w.unmount()
 })
 it('muestra el fallo y reintenta Teams solo para administración', async () => {
@@ -30,7 +42,7 @@ it('muestra el fallo y reintenta Teams solo para administración', async () => {
 })
 
 it('no confirma el callback sin verificar el estado y limpia el parámetro', async () => {
-  window.history.replaceState({}, '', '/admin?microsoft=connected&other=1')
+  window.history.replaceState({}, '', '/profile?microsoft=connected&other=1')
   const w = mount(MicrosoftIntegration); await flushPromises()
   expect(w.text()).toContain('No se pudo confirmar la conexión')
   expect(window.location.search).toBe('?other=1')
@@ -89,19 +101,16 @@ it('rechaza una URL de autorización fuera de Microsoft', async () => {
   expect(w.text()).toContain('No se pudo iniciar la conexión')
   w.unmount()
 })
-it('solicita confirmación antes de desconectar', async () => {
+it('advierte y permite cancelar sin petición', async () => {
   vi.mocked(api.get).mockResolvedValue({ data: { configured: true, connected: true, account_label: 'Profesora', needs_reconnect: false } })
-  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-  const w = mount(MicrosoftIntegration); await flushPromises()
-  await w.get('button').trigger('click')
-  expect(api.post).not.toHaveBeenCalled()
-  expect(confirm).toHaveBeenCalledOnce()
-  const text = confirm.mock.calls[0]![0]!
-  expect(text).toContain('solo elimina la credencial almacenada en esta aplicación')
-  expect(text).toContain('no revoca los permisos en Microsoft')
-  expect(text).toContain('revocarlos directamente en Microsoft')
-  expect(text).toContain('operación en curso puede finalizar')
-  confirm.mockRestore(); w.unmount()
+  const w = mount(MicrosoftIntegration, { attachTo: document.body }); await flushPromises()
+  const trigger = w.get('button'); (trigger.element as HTMLElement).focus(); await trigger.trigger('click'); await flushPromises()
+  const dialog = w.get('[role="dialog"]')
+  for (const text of ['credencial local', 'Outlook/Teams', 'SMTP', 'no revoca', 'operaciones en curso', 'misma cuenta']) expect(dialog.text()).toContain(text)
+  expect(document.activeElement?.textContent).toContain('Cancelar')
+  await dialog.trigger('keydown', { key: 'Escape' }); await flushPromises()
+  expect(api.post).not.toHaveBeenCalled(); expect(document.activeElement).toBe(trigger.element)
+  w.unmount()
 })
 
 
@@ -119,11 +128,49 @@ it('permite reintentar la eliminación fallida de una clase cancelada', async ()
 })
 
 
-it('advierte en la confirmación que solo se puede reconectar con la misma cuenta', async () => {
+it('confirma la desconexión únicamente tras consultar el estado', async () => {
+  vi.mocked(api.get).mockResolvedValueOnce({ data: { configured: true, connected: true, account_label: null, needs_reconnect: false } }).mockResolvedValueOnce({ data: { configured: true, connected: false, account_label: null, needs_reconnect: false } })
+  vi.mocked(api.post).mockResolvedValue({ data: {} })
+  const w = mount(MicrosoftIntegration); await flushPromises(); await w.get('button').trigger('click')
+  await w.findAll('button').find(b => b.text() === 'Aceptar')!.trigger('click'); await flushPromises()
+  expect(api.post).toHaveBeenCalledTimes(1); expect(w.text()).toContain('Cuenta de Microsoft desconectada.')
+  expect(w.find('[role="dialog"]').exists()).toBe(false); w.unmount()
+})
+it('conserva el foco y bloquea solicitudes duplicadas durante la desconexión fallida', async () => {
   vi.mocked(api.get).mockResolvedValue({ data: { configured: true, connected: true, account_label: null, needs_reconnect: false } })
-  const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
+  let reject!: (reason: Error) => void
+  vi.mocked(api.post).mockReturnValue(new Promise((_resolve, fail) => { reject = fail }))
+  const w = mount(MicrosoftIntegration, { attachTo: document.body }); await flushPromises()
+  const trigger = w.get('button'); (trigger.element as HTMLElement).focus(); await trigger.trigger('click'); await flushPromises()
+  const dialog = w.get('[role="dialog"]'); const accept = w.findAll('button').find(b => b.text() === 'Aceptar')!
+  ;(accept.element as HTMLElement).focus()
+  const descriptor = Object.getOwnPropertyDescriptor(HTMLButtonElement.prototype, 'disabled')!
+  const observed: boolean[] = []
+  const spy = vi.spyOn(HTMLButtonElement.prototype, 'disabled', 'set').mockImplementation(function (this: HTMLButtonElement, value: boolean) {
+    if (this === accept.element && value) observed.push(document.activeElement === dialog.element)
+    descriptor.set!.call(this, value)
+  })
+  await accept.trigger('click'); expect(observed).toEqual([true])
+  for (const shiftKey of [false, true]) {
+    ;(document.activeElement as HTMLElement).blur()
+    const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true })
+    document.body.dispatchEvent(event); expect(event.defaultPrevented).toBe(true); expect(document.activeElement).toBe(dialog.element)
+  }
+  await dialog.trigger('keydown', { key: 'Escape' }); await accept.trigger('click')
+  expect(api.post).toHaveBeenCalledTimes(1); expect(w.find('[role="dialog"]').exists()).toBe(true)
+  spy.mockRestore(); reject(new Error('fallo')); await flushPromises()
+  expect(w.text()).toContain('No se pudo desconectar o verificar')
+  await dialog.trigger('keydown', { key: 'Escape' }); await flushPromises()
+  expect(document.activeElement).toBe(trigger.element); w.unmount()
+})
+it('solo confirma la desconexión tras verificar el estado', async () => {
+  vi.mocked(api.get).mockResolvedValue({ data: { configured: true, connected: true, account_label: null, needs_reconnect: false } })
+  vi.mocked(api.post).mockResolvedValue({ data: {} })
   const w = mount(MicrosoftIntegration); await flushPromises()
   await w.get('button').trigger('click')
-  expect(confirm.mock.calls[0]![0]).toContain('solo podrás reconectar con la misma cuenta de Microsoft')
-  confirm.mockRestore(); w.unmount()
+  await w.findAll('button').find(b => b.text() === 'Aceptar')!.trigger('click'); await flushPromises()
+  expect(api.post).toHaveBeenCalledTimes(1)
+  expect(w.text()).toContain('No se pudo desconectar o verificar')
+  expect(w.text()).not.toContain('Cuenta de Microsoft desconectada.')
+  w.unmount()
 })

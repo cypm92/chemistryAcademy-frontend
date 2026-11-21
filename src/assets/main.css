@@ -186,6 +186,7 @@
   .calendar-head-actions { display: contents; }
   .calendar-head-actions > .calendar-nav { grid-column: 3; grid-row: 1; }
   .calendar-head-actions > .calendar-view-toggle { grid-column: 1 / -1; justify-self: end; }
+  .calendar-head-actions > .reminder-settings { grid-column: 1 / -1; justify-self: end; }
 }
 .week-day.weekend, .month-day.weekend { background-color: #faeef5; }
 .week-day.weekend.today, .month-day.weekend.today { background-color: #f5e2ed; }
@@ -211,8 +212,47 @@ button.class-status:focus-visible, .class-request-actions button:focus-visible, 
 .class-status-menu button:focus-visible { outline: 2px solid var(--brand-green); outline-offset: -2px; }
 @media (max-width: 700px) { .class-status-control { align-self: flex-end; } }
 
-.microsoft-panel { margin: 16px 0; }
-.microsoft-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.microsoft-panel { width: min(590px, 100%); margin: 16px 0; padding: 32px; }
+.microsoft-actions { display: grid; gap: 8px; }
+.microsoft-actions button { width: 100%; margin: 0; }
+.microsoft-actions .primary { background: var(--brand-green); }
+.microsoft-actions .danger { background: #a12c24; color: white; }
+.microsoft-actions button:focus-visible, .reminder-trigger:focus-visible { outline: 2px solid var(--brand-green); outline-offset: 2px; }
+.reminder-trigger { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #a74c00; border-radius: 10px; background: #fff1e4; color: #8c3e00; padding: 9px 13px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.reminder-trigger:hover { background: #ffe0c1; }
+.reminder-settings > p { margin: 6px 0 0; font-size: 12px; }
+/* La cabecera depende del ancho del panel, no del ancho de la ventana. */
+.calendar-head { grid-template-columns: 32px minmax(0, 1fr) 32px; }
+.calendar-head h2 { min-width: 0; text-align: center; overflow-wrap: anywhere; }
+.calendar-head-actions { display: contents; }
+.calendar-head-actions > .calendar-nav { grid-column: 3; grid-row: 1; }
+.calendar-head-actions > .calendar-view-toggle { grid-column: 1 / -1; grid-row: 2; justify-self: start; }
+.calendar-head-actions > .reminder-settings { grid-column: 1 / -1; grid-row: 3; justify-self: start; min-width: 0; }
+.reservation-layout > .calendar-panel { min-width: 0; container-type: inline-size; }
+@container (min-width: 580px) {
+  .calendar-head { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 8px; }
+  .calendar-head-actions { display: flex; gap: 8px; }
+  .calendar-head h2 { overflow-wrap: normal; }
+}
+@container (min-width: 580px) and (max-width: 700px) {
+  .calendar-head { padding-inline: 12px; }
+  .calendar-head h2 { font-size: 20px; }
+  .calendar-view-toggle button { padding-inline: 9px; }
+}
+.week-calendar, .month-calendar { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+@media (max-width: 620px) {
+  .week-day { min-width: 0; padding: 12px 2px; }
+  .week-timeline { margin-left: 16px; margin-right: 0; }
+  .week-day > span { overflow-wrap: anywhere; }
+  .year-calendar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .year-month { min-width: 0; padding: 10px; overflow-wrap: anywhere; }
+}
+@media (max-width: 430px) {
+  .profile-card, .microsoft-panel { padding: 20px; }
+  .avatar-editor { flex-wrap: wrap; gap: 12px; padding: 14px; }
+  .avatar-editor > div { min-width: 0; padding-left: 0; overflow-wrap: anywhere; }
+  .calendar-head { padding: 16px 12px; }
+}
 .class-teams { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin: 0 0 12px; color: var(--muted); font-size: 12px; }
 .class-teams button { border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; background: var(--paper); color: var(--brand-green); font-weight: 700; cursor: pointer; }
 .class-teams button:disabled { opacity: .6; cursor: wait; }

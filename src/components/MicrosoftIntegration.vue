@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { api } from '../services/api'
+import AccessibleDialog from './AccessibleDialog.vue'
 
 type Status = { configured: boolean; connected: boolean; account_label: string | null; needs_reconnect: boolean }
 const status = ref<Status | null>(null)
 const busy = ref(false)
 const error = ref('')
 const message = ref('')
+const disconnectOpen = ref(false)
+const dialog = ref<InstanceType<typeof AccessibleDialog> | null>(null)
 async function refresh() {
   const { data } = await api.get('/admin/integrations/microsoft')
   status.value = data
@@ -26,11 +29,13 @@ async function connect() {
   } catch { error.value = 'No se pudo iniciar la conexión con Microsoft.' } finally { busy.value = false }
 }
 async function disconnect() {
-  if (!window.confirm('¿Desconectar la cuenta de Microsoft? Esta acción solo elimina la credencial almacenada en esta aplicación; no revoca los permisos en Microsoft. Puedes revocarlos directamente en Microsoft. Una operación en curso puede finalizar después de la desconexión. Después de desconectar, solo podrás reconectar con la misma cuenta de Microsoft.')) return
+  if (busy.value) return
+  dialog.value?.focusStable()
   busy.value = true; error.value = ''; message.value = ''
   try {
     await api.post('/admin/integrations/microsoft/disconnect'); await refresh()
     if (status.value?.connected || status.value?.needs_reconnect) throw new Error('Desconexión no confirmada')
+    disconnectOpen.value = false
     message.value = 'Cuenta de Microsoft desconectada.'
   }
   catch { error.value = 'No se pudo desconectar o verificar la cuenta de Microsoft.' } finally { busy.value = false }
@@ -63,10 +68,16 @@ onMounted(async () => {
       <p v-else><b>Desconectada.</b></p>
       <div class="microsoft-actions">
         <button v-if="status.configured && (!status.connected || status.needs_reconnect)" type="button" class="primary" :disabled="busy" @click="connect">{{ status.needs_reconnect ? 'Reconectar' : 'Conectar' }}</button>
-        <button v-if="status.connected || status.needs_reconnect" type="button" class="secondary" :disabled="busy" @click="disconnect">Desconectar</button>
+        <button v-if="status.connected || status.needs_reconnect" type="button" class="danger" :disabled="busy" @click="disconnectOpen = true">Desconectar</button>
       </div>
     </template>
-    <p v-if="error" class="alert" role="alert">{{ error }}</p>
+    <AccessibleDialog v-if="disconnectOpen" ref="dialog" title="Desconectar Microsoft" :busy="busy" @close="disconnectOpen = false">
+      <p>Se borra la credencial local y se interrumpe la sincronización Outlook/Teams hasta la reconexión. Esto no detiene SMTP y no revoca el permiso en Microsoft. Las operaciones en curso pueden terminar. Solo podrás reconectar con la misma cuenta de Microsoft.</p>
+      <p v-if="error" class="alert" role="alert">{{ error }}</p>
+      <button data-initial-focus type="button" class="secondary" :disabled="busy" @click="disconnectOpen = false">Cancelar</button>
+      <button type="button" class="danger" :disabled="busy" @click="disconnect">{{ busy ? 'Desconectando…' : 'Aceptar' }}</button>
+    </AccessibleDialog>
+    <p v-if="error && !disconnectOpen" class="alert" role="alert">{{ error }}</p>
     <p v-if="message" class="success-alert" role="status">{{ message }}</p>
   </section>
 </template>

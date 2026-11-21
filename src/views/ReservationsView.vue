@@ -4,6 +4,7 @@ import type { Booking, User } from "../types";
 import { api, errorMessage } from "../services/api";
 import { validAvailability } from "../services/availability";
 import { session } from "../services/session";
+import ReminderSettings from "../components/ReminderSettings.vue";
 import { classEndsByMadridCutoff, MADRID, madridInput, madridToUtc, madridCalendarDate, shiftCalendarPeriod, mondayStart, isWeekend, canCancelBooking } from "../services/madridTime";
 
 type CalendarView = "week" | "month" | "year";
@@ -500,6 +501,7 @@ onMounted(() => { void load(); void loadStudents(); });
                 {{ item === "week" ? "Semana" : item === "month" ? "Mes" : "Año" }}
               </button>
             </div>
+            <ReminderSettings v-if="isAdmin" />
           </div>
         </header>
         <div v-if="view === 'week'" class="week-calendar">

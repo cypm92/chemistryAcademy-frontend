@@ -5,7 +5,6 @@ import type { Folder, Tag } from '../types'
 import FolderTreePicker from '../components/FolderTreePicker.vue'
 import MaterialTagPicker from '../components/MaterialTagPicker.vue'
 import StudentsView from './StudentsView.vue'
-import MicrosoftIntegration from '../components/MicrosoftIntegration.vue'
 import HomeSettings from '../components/HomeSettings.vue'
 
 const folders = ref<Folder[]>([])
@@ -32,8 +31,7 @@ const newFolderButton = ref<HTMLButtonElement | null>(null)
 let folderDeleteOrigin: HTMLElement | null = null
 const folderSearch = ref('')
 const expandedFolderIds = ref<number[]>([])
-const activeSection = ref<'students' | 'folders' | 'resources' | 'settings'>(new URLSearchParams(window.location.search).has('microsoft') ? 'settings' : 'students')
-const notificationSettings = ref({ reminder_interval_minutes: 1440 })
+const activeSection = ref<'students' | 'folders' | 'resources'>('students')
 type PublicResource = { id: number; title: string; description: string; subject: string; file_url?: string; url?: string; community?: string; exam_year?: number; exam_part?: 'statement' | 'solutions' }
 const publicResources = ref<{ exams: PublicResource[]; forms: PublicResource[]; videos: PublicResource[]; documents: PublicResource[] }>({ exams: [], forms: [], videos: [], documents: [] })
 const publicExam = ref({ title: '', description: '', subject: 'quimica', community: 'Madrid', exam_year: new Date().getFullYear(), exam_part: 'statement' as 'statement' | 'solutions', file: null as File | null })
@@ -58,10 +56,6 @@ function resourceTabKeydown(event: KeyboardEvent) {
   resourceTab.value = resourceTabs[next]!
   void nextTick(() => document.getElementById(`resource-tab-${resourceTab.value}`)?.focus())
 }
-const reminderPreset = ref('1440')
-
-const contactRequests = ref<Array<{ id: number; name: string; contact: string; need: string; message: string; created_at: string }>>([])
-
 const editingFolder = computed(() => folders.value.find((folder) => folder.id === editingFolderId.value))
 const folderRows = computed(() => {
   const search = folderSearch.value.trim().toLocaleLowerCase()
@@ -78,28 +72,9 @@ const folderRows = computed(() => {
   }).map((folder) => ({ folder, hasChildren: hasChildren.has(folder.id), depth: folder.path.split(' / ').length - 1 }))
 })
 
-async function loadNotificationSettings() {
-  const { data } = await api.get('/admin/notification-settings')
-  notificationSettings.value = { reminder_interval_minutes: data.reminder_interval_minutes }
-  reminderPreset.value = [1440, 360, 120, 30].includes(data.reminder_interval_minutes) ? String(data.reminder_interval_minutes) : 'custom'
-}
-
-async function saveNotificationSettings() {
-  error.value = ''; notice.value = ''
-  const minutes = reminderPreset.value === 'custom' ? notificationSettings.value.reminder_interval_minutes : Number(reminderPreset.value)
-  if (!Number.isInteger(minutes) || minutes < 1 || minutes > 525600) { error.value = 'El intervalo debe ser un número entero entre 1 y 525600 minutos.'; return }
-
-  try {
-    const { data } = await api.patch('/admin/notification-settings', { reminder_interval_minutes: minutes })
-    notificationSettings.value = { reminder_interval_minutes: data.reminder_interval_minutes }
-    reminderPreset.value = [1440, 360, 120, 30].includes(data.reminder_interval_minutes) ? String(data.reminder_interval_minutes) : 'custom'
-    notice.value = 'Configuración de notificaciones guardada.'
-  } catch (e) { error.value = errorMessage(e) }
-}
 async function load() {
-  const [f, t, contacts] = await Promise.all([api.get('/admin/folders'), api.get('/admin/tags'), api.get('/admin/contact-requests')])
+  const [f, t] = await Promise.all([api.get('/admin/folders'), api.get('/admin/tags')])
   folders.value = f.data; tags.value = t.data
-  contactRequests.value = contacts.data
   if (folderSelection.value === null || !folders.value.some(folder => folder.id === folderSelection.value)) {
     folderSelection.value = folders.value.find(folder => folder.name === 'Sin clasificar' && folder.parent_id === null)?.id ?? null
   }
@@ -275,13 +250,13 @@ async function confirmFolderDelete() {
   } catch (e) { folderDeleteError.value = errorMessage(e) }
   finally { folderDeleteBusy.value = false }
 }
-onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResources()]).catch((e) => error.value = errorMessage(e)))
+onMounted(() => Promise.all([load(), loadPublicResources()]).catch((e) => error.value = errorMessage(e)))
 </script>
 
 <template>
-  <section :class="['page', 'admin-page', { 'admin-page-students': activeSection === 'students', 'admin-page-folders': activeSection === 'folders', 'admin-page-settings': activeSection === 'settings', 'admin-page-resources': activeSection === 'resources' }]">
+  <section :class="['page', 'admin-page', { 'admin-page-students': activeSection === 'students', 'admin-page-folders': activeSection === 'folders', 'admin-page-resources': activeSection === 'resources' }]">
     <p v-if="notice" class="success-alert">{{ notice }}</p><p v-if="error" class="alert">{{ error }}</p>
-    <div class="admin-layout"><nav class="admin-tabs" role="tablist" aria-label="Secciones de administración"><button :class="{ active: activeSection === 'students' }" type="button" role="tab" :aria-selected="activeSection === 'students'" @click="activeSection = 'students'">Usuarios</button><button :class="{ active: activeSection === 'folders' }" type="button" role="tab" :aria-selected="activeSection === 'folders'" @click="activeSection = 'folders'">Carpetas y Archivos</button><button :class="{ active: activeSection === 'resources' }" type="button" role="tab" :aria-selected="activeSection === 'resources'" @click="activeSection = 'resources'">Gestionar Web inicio</button><button :class="{ active: activeSection === 'settings' }" type="button" role="tab" :aria-selected="activeSection === 'settings'" @click="activeSection = 'settings'">Notificaciones</button></nav><main class="admin-content">
+    <div class="admin-layout"><nav class="admin-tabs" role="tablist" aria-label="Secciones de administración"><button :class="{ active: activeSection === 'students' }" type="button" role="tab" :aria-selected="activeSection === 'students'" @click="activeSection = 'students'">Usuarios</button><button :class="{ active: activeSection === 'folders' }" type="button" role="tab" :aria-selected="activeSection === 'folders'" @click="activeSection = 'folders'">Carpetas y Archivos</button><button :class="{ active: activeSection === 'resources' }" type="button" role="tab" :aria-selected="activeSection === 'resources'" @click="activeSection = 'resources'">Gestionar Web inicio</button></nav><main class="admin-content">
     <div v-if="activeSection === 'folders'" class="admin-tab-grid">
 
       <form class="panel folders-upload-panel" @submit.prevent="uploadFile"><h2>Subir material</h2><p>PDF, MP4, WebM o MOV. Elige una carpeta creada previamente.</p><label>Título<input v-model="upload.title" required /></label><label>Carpeta<FolderTreePicker v-model="folderSelection" :folders="folders" :allow-root="false" /></label><MaterialTagPicker v-model="uploadTags" v-model:pending="uploadPendingTag" v-model:open="uploadTagSelectorOpen" :available="tags" @deleted="tagDeleted" /><label>Descripción<textarea v-model="upload.description" rows="3" /></label><label class="file-input">Archivo<input type="file" accept=".pdf,video/*" required @change="upload.file = ($event.target as HTMLInputElement).files?.[0] || null" /></label><button class="primary">Subir material</button></form>
@@ -391,19 +366,7 @@ onMounted(() => Promise.all([load(), loadNotificationSettings(), loadPublicResou
         </template>
       </section>
     </div>
-    <MicrosoftIntegration v-show="activeSection === 'settings'" />
-    <form v-if="activeSection === 'settings'" class="panel notification-settings-panel" @submit.prevent="saveNotificationSettings">
-      <h2>Recordatorios de reservas</h2><p>Los recordatorios se envían automáticamente al correo de cada estudiante con una clase confirmada.</p>
-
-      <label>Antelación del recordatorio<select v-model="reminderPreset" @change="reminderPreset !== 'custom' && (notificationSettings.reminder_interval_minutes = Number(reminderPreset))"><option value="1440">24 horas</option><option value="360">6 horas</option><option value="120">2 horas</option><option value="30">30 minutos</option><option value="custom">Personalizado</option></select></label><label v-if="reminderPreset === 'custom'">Intervalo personalizado (minutos)<input v-model.number="notificationSettings.reminder_interval_minutes" type="number" min="1" max="525600" step="1" required /><small>Entre 1 minuto y 365 días (525600 minutos).</small></label>
-      <button class="primary">Guardar configuración</button>
-    </form>
     <StudentsView v-if="activeSection === 'students'" embedded />
-    <section v-if="activeSection === 'settings'" class="contact-requests-panel">
-      <div class="contact-requests-head"><div><h2>Solicitudes desde la portada</h2><p>Mensajes enviados por personas que todavía no tienen cuenta.</p></div><span>{{ contactRequests.length }} {{ contactRequests.length === 1 ? 'solicitud' : 'solicitudes' }}</span></div>
-      <div v-if="contactRequests.length" class="contact-requests-list"><article v-for="request in contactRequests" :key="request.id"><div><b>{{ request.name }}</b><small>{{ request.contact }} · {{ request.need }}</small></div><p>{{ request.message || 'Sin mensaje adicional.' }}</p><time>{{ new Date(request.created_at).toLocaleString('es-ES', { dateStyle: 'medium', timeStyle: 'short' }) }}</time></article></div>
-      <p v-else class="contact-requests-empty">No hay solicitudes de contacto nuevas.</p>
-    </section>
     </main></div>
   </section>
 </template>
