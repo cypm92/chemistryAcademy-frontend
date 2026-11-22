@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ClassesView from '../src/views/ClassesView.vue'
 import { api } from '../src/services/api'
@@ -8,7 +8,8 @@ vi.mock('../src/services/api', () => ({ api: { get: vi.fn(), post: vi.fn(), patc
 const item = (extra = {}) => ({ id: 1, starts_at: '2026-11-04T10:00:00Z', ends_at: '2026-11-04T11:00:00Z', status: 'confirmed', management_status: null, is_historical: false, topic: 'Química', admin_comment: '', user_id: 2, user_name: 'Alumna', user_email: 'a@example.com', materials: [], teams_status: 'needs_review', teams_review_reason: 'patch_result_unknown', teams_action: 'upsert', teams_revision: 7, teams_unresolved_attempts: 1, ...extra })
 async function setup(extra = {}, role = 'admin') { session.user = { role } as any; vi.mocked(api.get).mockResolvedValue({ data: [item(extra)] } as any); const w = mount(ClassesView, { attachTo: document.body }); await flushPromises(); return w }
 const button = (text: string) => [...document.querySelectorAll('button')].find(b => b.textContent?.includes(text))!
-afterEach(() => { document.body.innerHTML = ''; vi.resetAllMocks() })
+beforeEach(() => { vi.setSystemTime(new Date('2026-11-04T12:00:00Z')) })
+afterEach(() => { vi.useRealTimers(); document.body.innerHTML = ''; vi.resetAllMocks() })
 it('permite al administrador confirmar la revisión tras aceptar el riesgo', async () => {
  const w = await setup(); button('He comprobado Outlook').click(); await flushPromises()
  expect(document.querySelector('[role="dialog"]')).not.toBeNull()

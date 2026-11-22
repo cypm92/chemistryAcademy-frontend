@@ -66,6 +66,7 @@ it.each(['calendar', 'classes'])('valida edición desde %s y conserva el comenta
   vi.mocked(api.patch).mockResolvedValue({ data: item } as any)
   const wrapper = view === 'calendar' ? mount(ReservationsView) : mount(ClassesView, { global: { stubs: { MaterialViewer: true } } })
   await flushPromises()
+  if (view === 'classes') await wrapper.findAll('[role=tab]')[2].trigger('click')
   await wrapper.get(view === 'calendar' ? '.week-event' : '.edit-button').trigger('click')
   const form = wrapper.get(view === 'calendar' ? '.calendar-manage-card' : '.edit-class-card')
   await form.get('input[type="time"]').setValue('21:30')

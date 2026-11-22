@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ClassesView from '../src/views/ClassesView.vue'
 import { api, downloadMaterial } from '../src/services/api'
@@ -35,7 +35,9 @@ const baseMaterial = {
   teams_unresolved_attempts: 0,
 }
 
+afterEach(() => { vi.useRealTimers() })
 beforeEach(() => {
+  vi.setSystemTime(new Date('2026-11-04T12:00:00Z'))
   vi.clearAllMocks()
   session.user = null
   vi.mocked(api.get).mockResolvedValue({

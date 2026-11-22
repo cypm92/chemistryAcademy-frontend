@@ -172,8 +172,6 @@
 
 .madrid-time-notice { margin: 8px 0 12px; padding: 12px 14px; border: 2px solid #a55d00; border-radius: 10px; background: #fff0c2; color: #663900; font-size: 14px; font-weight: 700; line-height: 1.4; }
 .calendar-time-notice { margin: 12px 0; }
-.class-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
-.class-section-heading h2 { margin: 0; font: 600 20px 'Fraunces'; color: var(--ink); }
 .class-count { flex-shrink: 0; padding: 8px 11px; border-radius: 20px; background: var(--mint); color: var(--brand-green); font-size: 12px; font-weight: 700; }
 .class-date .class-time-zone { text-align: center; }
 .reservation-layout > .calendar-panel { align-self: start; }
@@ -266,6 +264,36 @@ button.class-status:focus-visible, .class-request-actions button:focus-visible, 
 .pdf-scroll { position: absolute; inset: var(--pdf-controls-height) 0 0; width: 100%; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .pdf-viewer .pdfViewer { display: block; min-width: 100%; min-height: 100%; background: #17201f; --scale-factor: 1; }
 .pdf-viewer .pdfViewer .page { margin: 12px auto; border: 0; box-shadow: 0 4px 16px #0005; }
+
+/* Classes layout. */
+.classes-page { max-width: none; width: 100%; min-width: 0; }
+.classes-page .class-filters { grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, 1fr)) max-content; }
+.classes-page .class-filters-admin { grid-template-columns: minmax(0, 1.6fr) repeat(5, minmax(0, 1fr)) max-content; }
+.class-filters > *, .class-filters input, .class-filters select { min-width: 0; max-width: 100%; }
+.class-filters .class-count { justify-self: end; white-space: nowrap; }
+@media (max-width: 1100px) {
+  .classes-page .class-filters, .classes-page .class-filters-admin { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .classes-page .classes-search { grid-column: auto; }
+  .class-filters .class-count { grid-column: 1 / -1; }
+}
+@media (max-width: 620px) {
+  .classes-page .class-filters, .classes-page .class-filters-admin { grid-template-columns: minmax(0, 1fr); }
+}
+.classes-tabs { max-width: 900px; height: auto; }
+.class-results { min-width: 0; }
+.class-list { min-width: 0; align-content: start; }
+.class-main { min-width: 0; overflow-wrap: anywhere; }
+.class-actions .edit-button { background: #fff0c7; border-color: #e8d59f; color: #704b00; }
+.class-actions .edit-button:hover { background: #f8e2aa; border-color: #d5ba78; }
+.class-actions .class-upload input { display: block; position: absolute; width: 1px; height: 1px; opacity: 0; }
+.class-actions .class-upload:focus-within, .class-actions button:focus-visible { outline: 2px solid var(--brand-green); outline-offset: 2px; }
+@media (max-width: 620px) {
+  .classes-tabs { gap: 2px; }
+  .classes-tabs button { min-width: 0; padding: 10px 4px; }
+  .class-card { grid-template-columns: 62px minmax(0, 1fr); }
+  .class-filters input, .class-filters select { min-width: 0; max-width: 100%; }
+  .class-actions .class-upload, .class-actions .edit-button, .class-actions .delete-class-button { white-space: normal; }
+}
 .pdf-viewer .pdfViewer .page .textLayer { z-index: 1; }
 .pdf-status, .pdf-error { position: absolute; top: 50%; left: 50%; z-index: 2; max-width: min(420px, 90%); transform: translate(-50%, -50%); margin: 0; border-radius: 10px; padding: 12px 16px; background: #102522e8; color: #fff; text-align: center; }
 .pdf-viewer:fullscreen { width: 100vw; height: 100vh; background: #17201f; }

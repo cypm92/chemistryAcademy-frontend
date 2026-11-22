@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ClassesView from '../src/views/ClassesView.vue'
 import { api } from '../src/services/api'
@@ -7,7 +7,8 @@ import { session } from '../src/services/session'
 
 vi.mock('../src/services/api', () => ({ api: { get: vi.fn(), patch: vi.fn(), post: vi.fn(), delete: vi.fn() }, errorMessage: () => 'Error' }))
 const item = { id: 1, starts_at: '2026-11-04T10:00:00Z', ends_at: '2026-11-04T11:00:00Z', status: 'confirmed', management_status: null, is_historical: false, topic: 'Química', user_id: 2, user_name: 'Alumna', user_email: 'a@example.com', materials: [] }
-afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
+beforeEach(() => { vi.setSystemTime(new Date('2026-11-04T12:00:00Z')) })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.clearAllMocks() })
 it.each(['student', 'admin'])('muestra el comentario y permite abrir Teams para %s', async role => {
   session.user = { role } as any
   const comment = 'Preparar ejercicio\nEnlace de Teams: https://teams.microsoft.com/l/meetup-join/a?x=1&y=2'

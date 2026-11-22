@@ -29,14 +29,15 @@ describe('disponibilidad', () => {
     expect(get).not.toHaveBeenCalledWith('/admin/notification-settings')
     admin.unmount()
   })
-  it('muestra el contador total junto a la primera sección visible y en resultados vacíos', async () => {
+  it('muestra el contador filtrado en la barra y en resultados vacíos', async () => {
     session.user = { role: 'admin' } as any
     const base = { user_id: 1, user_name: 'Alumno', user_email: 'alumno@example.com', topic: 'Química', starts_at: '2026-11-03T10:00:00Z', materials: [], is_historical: false }
     get.mockResolvedValue({ data: [{ ...base, id: 1, status: 'requested' }, { ...base, id: 2, status: 'confirmed' }] } as any)
     const wrapper = mount(ClassesView, { global: { stubs: { MaterialViewer: true } } }); await flushPromises()
-    const heading = () => wrapper.find('.class-section-heading')
-    expect(heading().text()).toContain('Solicitudes pendientes')
-    expect(heading().text()).toContain('2 clases')
+    await wrapper.findAll('[role=tab]')[2].trigger('click')
+    const count = () => wrapper.get('.class-filters .class-count')
+    expect(wrapper.find('.class-section-heading').exists()).toBe(false)
+    expect(count().text()).toBe('2 clases')
     const cards = wrapper.findAll('.class-card')
     expect(cards[0].get('.class-status').text()).toBe('Reservada')
     expect(cards[1].get('.class-status').text()).toBe('Confirmada')
@@ -45,10 +46,9 @@ describe('disponibilidad', () => {
     expect(cards[0].findAll('.class-status-menu button').map(button => button.text())).toEqual(['Aprobar', 'Rechazar'])
     const status = wrapper.findAll('.class-filters select').find(select => select.text().includes('Confirmadas'))!
     await status.setValue('confirmed')
-    expect(heading().text()).toContain('Clases e historial')
-    expect(heading().text()).toContain('1 clase')
+    expect(count().text()).toBe('1 clase')
     await status.setValue('cancelled')
-    expect(heading().text()).toContain('0 clases')
+    expect(count().text()).toBe('0 clases')
     wrapper.unmount()
   })
   it('permite cambiar la vista desde la cabecera del calendario', async () => {
