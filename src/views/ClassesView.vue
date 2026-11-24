@@ -197,7 +197,11 @@ const filtered = computed(() =>
       matchesMaterial &&
       matchesTab
     );
-  }).sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime() || a.id - b.id),
+  }).sort((a, b) =>
+    activeTab.value === 'today'
+      ? new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime() || a.id - b.id
+      : new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime() || a.id - b.id,
+  ),
 );
 function statusLabel(status: AcademyClass["status"] | 'paid' | 'pending_payment') {
   return {
@@ -468,41 +472,43 @@ onMounted(load);
     <p v-if="error" class="alert">{{ error }}</p>
     <p v-if="success" class="success-alert">{{ success }}</p>
     <button v-if="classesStale && !loading" type="button" @click="load">Actualizar clases</button>
-    <nav class="admin-tabs classes-tabs" role="tablist" aria-label="Periodo de las clases">
-      <button v-for="tab in periodTabs" :id="`classes-tab-${tab}`" :key="tab" type="button" role="tab" aria-controls="classes-panel" :tabindex="activeTab === tab ? 0 : -1" :aria-selected="activeTab === tab" :class="{ active: activeTab === tab }" @click="activeTab = tab" @keydown="onPeriodKey($event, tab)">{{ { history: 'Historial', today: 'Hoy', future: 'Futuras' }[tab] }}</button>
-    </nav>
+    <div class="classes-sticky-header">
+      <nav class="admin-tabs classes-tabs" role="tablist" aria-label="Periodo de las clases">
+        <button v-for="tab in periodTabs" :id="`classes-tab-${tab}`" :key="tab" type="button" role="tab" aria-controls="classes-panel" :tabindex="activeTab === tab ? 0 : -1" :aria-selected="activeTab === tab" :class="{ active: activeTab === tab }" @click="activeTab = tab" @keydown="onPeriodKey($event, tab)">{{ { history: 'Historial', today: 'Hoy', future: 'Futuras' }[tab] }}</button>
+      </nav>
+      <section class="class-filters" :class="{ 'class-filters-admin': isAdmin }">
+        <label class="classes-search"
+          ><span>⌕</span
+          ><input
+            v-model="filters.search"
+            placeholder="Buscar por tema, alumno o archivo..." /></label
+        ><select v-if="isAdmin" v-model="filters.student">
+          <option value="">Todos los alumnos</option>
+          <option
+            v-for="student in students"
+            :key="classPersonKey(student)"
+            :value="classPersonKey(student)"
+          >
+            {{ student.user_name }}{{ student.user_id === null ? ` · ${student.user_email} (invitado)` : "" }}
+          </option></select
+        ><select v-model="filters.status">
+          <option value="">Todos los estados</option>
+          <option value="requested">Reservadas</option>
+          <option value="confirmed">Confirmadas</option>
+          <option v-if="isAdmin" value="paid">Pagadas</option>
+          <option v-if="isAdmin" value="pending_payment">Pendientes de pago</option>
+          <option value="declined">Rechazadas</option>
+          <option value="cancelled">Canceladas</option></select
+        ><select v-model="filters.material">
+          <option value="">Cualquier material</option>
+          <option value="attached">Con archivos</option>
+          <option value="none">Sin archivos</option></select
+        ><label>Desde<input v-model="filters.dateFrom" type="date" @click="openDatePicker" /></label
+        ><label>Hasta<input v-model="filters.dateTo" type="date" @click="openDatePicker" /></label>
+        <span class="class-count">{{ filtered.length }} {{ filtered.length === 1 ? 'clase' : 'clases' }}</span>
+      </section>
+    </div>
     <div id="classes-panel" role="tabpanel" :aria-labelledby="`classes-tab-${activeTab}`">
-    <section class="class-filters" :class="{ 'class-filters-admin': isAdmin }">
-      <label class="classes-search"
-        ><span>⌕</span
-        ><input
-          v-model="filters.search"
-          placeholder="Buscar por tema, alumno o archivo..." /></label
-      ><select v-if="isAdmin" v-model="filters.student">
-        <option value="">Todos los alumnos</option>
-        <option
-          v-for="student in students"
-          :key="classPersonKey(student)"
-          :value="classPersonKey(student)"
-        >
-          {{ student.user_name }}{{ student.user_id === null ? ` · ${student.user_email} (invitado)` : "" }}
-        </option></select
-      ><select v-model="filters.status">
-        <option value="">Todos los estados</option>
-        <option value="requested">Reservadas</option>
-        <option value="confirmed">Confirmadas</option>
-        <option v-if="isAdmin" value="paid">Pagadas</option>
-        <option v-if="isAdmin" value="pending_payment">Pendientes de pago</option>
-        <option value="declined">Rechazadas</option>
-        <option value="cancelled">Canceladas</option></select
-      ><select v-model="filters.material">
-        <option value="">Cualquier material</option>
-        <option value="attached">Con archivos</option>
-        <option value="none">Sin archivos</option></select
-      ><label>Desde<input v-model="filters.dateFrom" type="date" @click="openDatePicker" /></label
-      ><label>Hasta<input v-model="filters.dateTo" type="date" @click="openDatePicker" /></label>
-      <span class="class-count">{{ filtered.length }} {{ filtered.length === 1 ? 'clase' : 'clases' }}</span>
-    </section>
     <p v-if="loading" class="classes-empty">Cargando clases...</p>
     <div v-else class="class-results">
       <div class="class-list" aria-label="Listado de clases">

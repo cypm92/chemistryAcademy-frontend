@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,600&display=swap');
-:root { --ink:#174f3b; --green:var(--brand-green); --mint:#dcebe4; --lime:#b9d9c8; --cream:#f7f4ef; --paper:#fffdf9; --muted:#667a72; --line:#d7e3dd; --danger:#a53b32; --brand-green:#1d6b4f; --brand-cream:#f7f4ef; --brand-charcoal:#2c2c38; --brand-accent:#5b987d; --brand-pale:#c7dfd3; --brand-border:#8fbba7; }
+:root { --ink:#174f3b; --green:var(--brand-green); --mint:#dcebe4; --lime:#b9d9c8; --cream:#f7f4ef; --paper:#fffdf9; --muted:#667a72; --line:#d7e3dd; --danger:#a53b32; --brand-green:#1d6b4f; --brand-cream:#f7f4ef; --brand-charcoal:#2c2c38; --brand-accent:#5b987d; --brand-pale:#c7dfd3; --brand-border:#8fbba7; --topbar-h:82px; }
 * { box-sizing:border-box } body { margin:0; color:var(--ink); background:var(--cream); font-family:'DM Sans',sans-serif } button,input,select,textarea { font:inherit } button { cursor:pointer }
-.topbar { height:82px; display:flex; align-items:center; padding:0 5vw; background:var(--paper); border-bottom:1px solid var(--line); gap:48px; position:sticky; top:0; z-index:5 }
+.topbar { height:var(--topbar-h); display:flex; align-items:center; padding:0 5vw; background:var(--paper); border-bottom:1px solid var(--line); gap:48px; position:sticky; top:0; z-index:5 }
 .brand { display:flex;align-items:center;flex:0 0 auto;border:0;background:transparent;padding:0;color:var(--ink);transition:transform .15s ease }.brand:hover { transform:scale(1.04) }.brand:focus-visible { outline:3px solid var(--lime);outline-offset:3px;border-radius:50% }.brand-logo { display:block;width:62px;height:62px;object-fit:contain }.brand small,.account small { display:block;font-size:10px;letter-spacing:.04em;color:var(--muted);font-weight:500 }.topbar nav { display:flex;gap:30px;flex:1 }.topbar nav a { color:var(--muted);text-decoration:none;font-weight:600;padding:30px 0;border-bottom:2px solid transparent }.topbar nav a.router-link-active { color:var(--brand-green);border-color:var(--brand-green) }.account { display:flex;align-items:center;gap:14px;text-align:right }.icon-button { border:1px solid var(--line);background:white;border-radius:50%;width:38px;height:38px;color:var(--ink);font-size:20px }
 .page { max-width:1240px;margin:auto;padding:52px 30px 80px }.hero { min-height:205px;padding:38px 48px;border-radius:28px;background:var(--ink);color:white;display:flex;justify-content:space-between;align-items:center;overflow:hidden }.hero h1,.page h1 { font:600 46px 'Fraunces';margin:6px 0 10px }.hero p { color:#c9d8d4 }.hero-formula { font:600 50px 'Fraunces';color:var(--lime);opacity:.82;transform:rotate(-5deg) }.eyebrow { font-size:11px!important;letter-spacing:.18em;font-weight:700;color:#698076;margin:0 }.hero .eyebrow { color:var(--lime) }
 .library-groups { display:grid;gap:18px;margin-top:30px }.folder-tree-node { margin-left:calc(var(--folder-depth) * 24px) }.folder-tree-heading { width:100%;display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:13px;background:var(--paper);padding:13px 16px;text-align:left;color:var(--ink) }.folder-tree-heading:hover { background:#f3f7f2 }.folder-chevron { display:inline-block;font-size:25px;line-height:16px;transform:rotate(0deg);transition:transform .15s ease;color:var(--green) }.folder-chevron.open { transform:rotate(90deg) }.folder-icon { display:grid;place-items:center;width:27px;height:27px;border-radius:8px;background:var(--lime);font-weight:700 }.folder-name { font:600 22px 'Fraunces' }.folder-tree-heading small { margin-left:auto;color:var(--muted);font-size:12px }.folder-tree-content { padding:0 0 18px }.folder-tree-content > .folder-tree-node { margin-top:14px }.folder-tree-content > .material-grid { margin-top:14px }.material-grid { display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:30px }.material-card,.panel { background:var(--paper);border:1px solid var(--line);border-radius:20px;overflow:hidden }.material-cover { height:165px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#dcebe3 }.material-cover.video { background:var(--ink);color:white }.material-cover span { font:600 26px 'Fraunces';width:62px;height:62px;border:1px solid currentColor;border-radius:50%;display:grid;place-items:center }.material-cover small { letter-spacing:.14em }.material-info { padding:22px }.material-info h3 { font:600 23px 'Fraunces';margin:12px 0 8px }.material-info p { color:var(--muted);min-height:44px }.material-meta { display:flex;justify-content:space-between;font-size:11px;color:var(--muted) }.card-actions { display:flex;gap:8px;margin-top:18px }
@@ -29,7 +29,7 @@
 .student-booking-summary { display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px }.student-booking-card { overflow:hidden;border:1px solid var(--line);border-radius:18px;background:var(--paper) }.booking-card-head { display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line) }.booking-card-head h2 { margin:4px 0 0;font:600 21px 'Fraunces' }.booking-card-head>span { display:grid;place-items:center;min-width:28px;height:28px;border-radius:50%;background:var(--mint);color:var(--brand-green);font-size:12px;font-weight:700 }.student-booking-card>.slots-empty { padding:12px 20px }.student-booking-list article { display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line) }.student-booking-list article:last-child { border-bottom:0 }.student-booking-list time { display:grid;place-items:center;width:48px;height:48px;border-radius:9px;background:var(--mint);color:var(--brand-green);text-transform:capitalize }.student-booking-list time b,.student-booking-list time small,.student-booking-list article>div b,.student-booking-list article>div small { display:block }.student-booking-list time b { font-size:12px }.student-booking-list time small,.student-booking-list article>div small { margin-top:3px;color:var(--muted);font-size:10px }.student-booking-list article>div b { font-size:12px }.booking-status { border-radius:20px;padding:5px 8px;font-size:10px;font-weight:700;white-space:nowrap }.history { max-height:235px;overflow:auto }.history article { opacity:.8 }
 @media(max-width:900px){.student-booking-summary{grid-template-columns:1fr}}@media(max-width:620px){.student-booking-list article{grid-template-columns:48px 1fr}.booking-status{grid-column:2;justify-self:start}}
 .week-calendar { min-height:0 }.week-day { position:relative;min-height:485px }.week-timeline { position:relative;height:364px;margin:14px -5px -8px 20px;border-left:1px solid #d9e4e0;background:repeating-linear-gradient(to bottom,transparent 0,transparent 13px,#e8efec 14px) }.timeline-line { position:absolute;right:0;left:0;height:1px;background:#d6e2dd }.timeline-hour { position:absolute;right:calc(100% + 4px);color:#90a39c;font-size:8px;line-height:1 }.week-event { position:absolute;right:3px;left:4px;z-index:1;overflow:hidden;border-left:3px solid currentColor;border-radius:4px;padding:2px 3px;font-size:8px;font-weight:700;line-height:1.1;white-space:nowrap;text-overflow:ellipsis }.week-event.booking-requested { background:#fff0c9!important;color:#956d1c!important }.week-event.booking-confirmed,.week-event.booking-blocked { background:#f9deda!important;color:#a53b32!important }.week-event.booking-unavailable { background:#e5eaed!important;color:#54646d!important }
-@media(max-width:900px){.week-day{min-height:450px}.week-timeline{margin-left:15px}.timeline-hour{display:none}}@media(max-width:620px){.week-day{min-height:420px}.week-timeline{height:330px}.week-event{font-size:7px}}
+@media(max-width:900px){.week-day{min-height:450px}.week-timeline{margin-left:15px}}@media(max-width:620px){.week-day{min-height:420px}.week-timeline{height:330px}.week-event{font-size:7px}}
 .topic-input { margin-top:13px!important;color:var(--ink)!important;font-size:11px!important }.topic-input input { padding:8px 9px;font-size:11px }.classes-page { max-width:1320px;padding-top:30px }.classes-heading { display:flex;justify-content:space-between;align-items:center;margin-bottom:20px }.classes-heading h1 { margin:5px 0;font:600 38px 'Fraunces' }.classes-heading p:not(.eyebrow) { margin:0;color:var(--muted);font-size:13px }.classes-heading>span { padding:8px 11px;border-radius:20px;background:var(--mint);color:var(--brand-green);font-size:12px;font-weight:700 }.class-filters { display:grid;grid-template-columns:2fr repeat(4,minmax(130px,1fr)) repeat(2,140px);gap:9px;align-items:end;margin-bottom:18px;padding:14px;border:1px solid var(--line);border-radius:15px;background:var(--paper) }.class-filters label { margin:0;font-size:10px }.class-filters input,.class-filters select { margin-top:4px;padding:9px;font-size:11px }.classes-search { display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:9px;background:white;padding:0 9px;color:var(--muted) }.classes-search input { flex:1;border:0;margin:0;padding:10px 0;outline:0 }.classes-empty { padding:35px;border:1px dashed var(--line);border-radius:14px;color:var(--muted);text-align:center }.class-list { display:grid;gap:12px }.class-card { display:grid;grid-template-columns:84px minmax(0,1fr);overflow:hidden;border:1px solid var(--line);border-radius:16px;background:var(--paper) }.class-date { display:grid;align-content:center;justify-items:center;padding:12px;background:var(--mint);color:var(--brand-green);text-transform:capitalize }.class-date b { font:600 18px 'Fraunces' }.class-date small { margin-top:5px;font-size:11px }.class-main { padding:16px 18px }.class-main-title { display:flex;justify-content:space-between;gap:16px;align-items:flex-start }.class-main-title h2 { margin:4px 0 0;font:600 23px 'Fraunces' }.class-status { border-radius:20px;padding:6px 9px;font-size:10px;font-weight:700;white-space:nowrap }.class-status.requested { background:#fff0c9;color:#956d1c }.class-status.confirmed { background:#dceee4;color:#28634f }.class-status.declined { background:#f8e3df;color:var(--danger) }.class-student { margin:9px 0;color:var(--muted);font-size:12px }.class-student b { color:var(--ink) }.class-materials { display:flex;gap:7px;flex-wrap:wrap }.class-material-chip,.no-materials { border-radius:7px;padding:5px 7px;font-size:10px }.class-material-chip { background:var(--mint);color:var(--brand-green);font-weight:700 }.no-materials { color:var(--muted);background:#f4f6f5 }.attach-material { display:flex;gap:8px;margin-top:13px }.attach-material select { flex:1;margin:0;padding:8px;font-size:11px }.attach-hint { margin:13px 0 0;color:var(--muted);font-size:11px;font-style:italic }
 @media(max-width:1100px){.class-filters{grid-template-columns:1fr 1fr 1fr}.classes-search{grid-column:1 / -1}}@media(max-width:620px){.classes-heading{align-items:flex-start;gap:12px;flex-direction:column}.class-filters{grid-template-columns:1fr}.class-card{grid-template-columns:62px 1fr}.class-main{padding:13px}.class-main-title{flex-direction:column;gap:6px}.attach-material{flex-direction:column}}
 .video-player { display:flex;flex-direction:column }.video-player video { flex:1;min-height:0;height:auto!important }.video-controls { position:static;flex:0 0 auto;margin:0 16px 14px }
@@ -144,6 +144,21 @@
 @media(max-width:900px){.week-day{min-height:478px}}
 @media(max-width:620px){.week-day{min-height:448px}.week-timeline{height:392px}}
 
+/* Horas del calendario semanal visibles en todo ancho (corrección de cascada: una regla a
+   max-width:900px ponía .timeline-hour en display:none, dejando un hueco de 621–900px —tablet,
+   p.ej. iPad mini ~768/820— donde las horas desaparecían pese a ser el mismo markup semanal en
+   todos los anchos. Se retiró el display:none en la media query de 900px. Es position:absolute,
+   así que mostrarla no cambia el ancho/alto de .week-day/.week-calendar en ningún ancho; medido
+   en navegador real sin desbordamiento desde 900px hasta 280px.
+   Tamaño real (CORRECCIÓN M-1 de t_b0cdf8a9: este comentario afirmaba antes "font-size 8px en
+   móvil/tablet/escritorio por igual", falso): sin más reglas, ".week-day span,.week-day small
+   {font-size:11px}" (especificidad 0,1,1) gana siempre a ".timeline-hour{font-size:8px}"
+   (0,1,0), así que de 621px en adelante (tablet y escritorio) las horas quedan en 11px, un
+   tamaño nuevo pero legible (no reportado como problema). En móvil (<=620px) se restaura 8px
+   con la regla siguiente para no alterar sin declararlo lo que el usuario ya validó en Pixel 9:
+   ".week-day .timeline-hour" tiene especificidad 0,2,0, que sí gana a la regla de 11px. */
+@media(max-width:620px){.week-day .timeline-hour{font-size:8px}}
+
 /* Indicadores de asignaturas de la portada más visibles. */
 .bc-subjects span{display:inline-flex;align-items:center}
 .bc-subjects span::before{flex:0 0 25px;width:25px;height:25px;margin-right:9px;border-radius:5px}
@@ -151,6 +166,35 @@
 /* El árbol de Mi biblioteca admite subcarpetas a cualquier profundidad. */
 .file-sidebar .folder-nav-item>span:nth-child(2){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .file-sidebar .folder-nav-item small,.file-sidebar .folder-nav-toggle{flex-shrink:0}
+
+/* Reservations layout (escritorio): usar el ancho disponible, mismo problema que ya se corrigió en
+   Classes — .reservations-page topaba en 1380px y dejaba espacio sin usar en monitores anchos.
+   El ancho de página se libera sin condición (max-width:none) en todo ≥901px: eso por sí solo
+   ya mejora el calendario (minmax(0,1fr)) en cuanto el viewport supera 1380px, sin tocar la
+   columna de la tarjeta de agenda ("Crear clase"/bloqueo).
+   CORRECCIÓN I-1 de t_b0cdf8a9 (regresión): la columna de la tarjeta pasó aquí de un ancho fijo
+   de 310px a minmax(300px,420px) en TODO ≥901px. Un track no flexible en una grilla con una
+   columna 1fr se dimensiona a su máximo si hay sitio, así que la tarjeta pasaba a ocupar 420px
+   siempre, restando 110px fijos al calendario en cualquier ancho ≥901px — en 969–1078px eso
+   hundía el calendario bajo el @container de 580px de .calendar-panel más abajo, apilando la
+   cabecera en 3 filas; y entre 901 y ~1489px el calendario quedaba más estrecho que antes de
+   esta tarea, no solo que la versión sin regresión. Fix: la columna se queda en 310px (idéntica
+   a la versión previa a esta tarea, cero regresión posible) hasta 1489px inclusive; medido en
+   navegador real: calendario idéntico a antes en todo ese rango que ya estaba por debajo de los
+   1380px previos, y mejor que antes de 1380 a 1489 (el cap de página ya no limita, la columna no
+   cambió). Desde 1490px la columna pasa a minmax(300px,420px) — practicarlo antes rompía el
+   rango 969–1078px; desde 1490px el calendario (container ya mayor que 1380-310-gap=992, el
+   tope previo) nunca baja de ese valor aunque la columna salte a su máximo, verificado punto por
+   punto contra el ancho exacto de la versión sin regresión en 901/969/1000/1024/1078/1100/
+   1280/1366/1440/1490/1600/1920px. Alto: ver la regla align-self:stretch más abajo en este
+   archivo, declarada después de align-self:start (gana por orden, misma especificidad). */
+@media (min-width: 901px) {
+  .reservations-page { max-width: none; width: 100%; min-width: 0; }
+  .reservation-layout { grid-template-columns: minmax(0, 1fr) 310px; }
+}
+@media (min-width: 1490px) {
+  .reservation-layout { grid-template-columns: minmax(0, 1fr) minmax(300px, 420px); }
+}
 
 /* Administración de recursos públicos */
 @media (min-width:901px){.admin-page.admin-page-resources{height:auto;min-height:calc(100dvh - 82px);overflow:visible}.admin-page-resources .admin-tab-grid{display:none}.admin-page-resources .resource-admin-grid{height:auto;max-height:calc(100dvh - 170px);overflow:auto}}
@@ -175,6 +219,18 @@
 .class-count { flex-shrink: 0; padding: 8px 11px; border-radius: 20px; background: var(--mint); color: var(--brand-green); font-size: 12px; font-weight: 700; }
 .class-date .class-time-zone { text-align: center; }
 .reservation-layout > .calendar-panel { align-self: start; }
+/* En escritorio, cuando la tarjeta de agenda ("Crear clase") necesita más alto que el calendario,
+   align-self:start de la regla anterior dejaba el calendario con su alto de contenido mientras la
+   fila de la grilla crecía hasta el alto de la tarjeta, dejando el hueco visible debajo del
+   calendario que reportó el usuario ("sigue sin ocupar todo espacio disponible"). stretch (el valor
+   por defecto que ya usa .slots-panel sin override) iguala el alto de la tarjeta del calendario al
+   de su fila; no recorta ni añade scroll porque .calendar-panel ya tenía overflow:hidden y su
+   contenido interno (cabecera + semana) no cambia de tamaño, solo el relleno de fondo bajo el borde
+   crece para igualar la fila. Debe ir después de la regla anterior en este archivo: misma
+   especificidad, y gana la última declarada cuando la media query coincide. */
+@media (min-width: 901px) {
+  .reservation-layout > .calendar-panel { align-self: stretch; }
+}
 .calendar-head { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; }
 .calendar-head > .calendar-nav { justify-self: start; }
 .calendar-head-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
@@ -280,6 +336,13 @@ button.class-status:focus-visible, .class-request-actions button:focus-visible, 
   .classes-page .class-filters, .classes-page .class-filters-admin { grid-template-columns: minmax(0, 1fr); }
 }
 .classes-tabs { max-width: 900px; height: auto; }
+/* Pestañas y filtros de Clases deben seguir visibles al desplazarse por el listado (no basta con que existan). */
+/* Se limita la altura a lo que deje el viewport tras topbar + hueco mínimo para la lista (I-2): con poco alto
+   (zoom alto, móvil horizontal, pantalla baja) la cabecera se vuelve desplazable por dentro en vez de ocupar
+   más que la pantalla; en escritorio el límite excede su alto natural y no cambia nada visualmente. */
+.classes-sticky-header { position: sticky; top: var(--topbar-h); z-index: 4; background: var(--cream); padding-top: 4px; max-height: max(72px, calc(100dvh - var(--topbar-h) - 160px)); overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.classes-sticky-header .classes-tabs { margin: 0 auto 16px; }
+.classes-sticky-header .class-filters { margin-bottom: 18px; }
 .class-results { min-width: 0; }
 .class-list { min-width: 0; align-content: start; }
 .class-main { min-width: 0; overflow-wrap: anywhere; }

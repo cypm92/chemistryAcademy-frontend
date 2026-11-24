@@ -19,17 +19,16 @@ it('ofrece la última prueba a las 21:00 y ninguna posterior', async () => {
   wrapper.unmount()
 })
 
-it('impide crear clases que terminan después de las 22:00 y permite las 22:00', async () => {
+it('ofrece como máximo las 22:00 al crear una clase de administración mediante el selector de rango y permite esa hora', async () => {
+  vi.mocked(api.post).mockResolvedValue({ data: {} } as any)
   const wrapper = mount(ReservationsView); await flushPromises()
   const form = wrapper.get('.agenda-block-panel form')
-  await form.get('input[type="datetime-local"]').setValue('2026-11-03T21:30')
-  await form.findAll('select')[1].setValue('2')
+  const [start, end] = form.findAll('.range-selectors select')
+  await start.setValue('21:30')
+  expect(end.findAll('option').map(option => option.element.value)).toEqual(['', '22:00'])
+  await end.setValue('22:00')
   await form.trigger('submit'); await flushPromises()
-  expect(api.post).not.toHaveBeenCalled()
-  expect(wrapper.text()).toContain('22:00')
-  await form.get('input[type="datetime-local"]').setValue('2026-11-03T21:00')
-  await form.trigger('submit'); await flushPromises()
-  expect(api.post).toHaveBeenCalledTimes(1)
+  expect(api.post).toHaveBeenCalledWith('/admin/classes', expect.objectContaining({ starts_at: '2026-11-02T20:30:00.000Z', duration_slots: 1 }))
   wrapper.unmount()
 })
 

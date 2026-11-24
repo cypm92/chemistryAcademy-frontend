@@ -30,11 +30,14 @@ const agendaAction = ref<"class" | "block">("class");
 const students = ref<User[]>([]);
 const adminClass = reactive({
   user_id: 0,
+  // starts_at/duration_slots kept for the legacy hidden .admin-agenda-tools markup (display:none in CSS).
   starts_at: "",
   duration_slots: 1,
   subject: "",
   admin_comment: "",
 });
+const adminStartSlot = ref("");
+const adminEndSlot = ref("");
 const calendarItem = ref<Booking | null>(null);
 const calendarEdit = reactive({
   date: "",
@@ -117,6 +120,72 @@ const slots = computed(() =>
     return `${String(hour).padStart(2, "0")}:${index % 2 ? "30" : "00"}`;
   }),
 );
+// Full-day half-hour grid for blocking a franja: unlike class slots (8:00-21:30),
+// a block can start/end at any time of day, so it covers all 48 half-hour marks.
+const HALF_HOUR_TIMES = Array.from({ length: 48 }, (_, index) => {
+  const hour = Math.floor(index / 2);
+  return `${String(hour).padStart(2, "0")}:${index % 2 ? "30" : "00"}`;
+});
+function splitDateTime(value: string): { date: string; time: string } {
+  if (!value) return { date: "", time: "" };
+  const [date = "", time = ""] = value.split("T");
+  return { date, time };
+}
+function combineDateTime(date: string, time: string): string {
+  return date && time ? `${date}T${time}` : "";
+}
+// Keeps a historical off-grid time (e.g. saved before this restriction existed)
+// selectable without forcing it onto the :00/:30 grid or silently changing it.
+function timeOptionsFor(current: string): string[] {
+  return current && !HALF_HOUR_TIMES.includes(current)
+    ? [current, ...HALF_HOUR_TIMES]
+    : HALF_HOUR_TIMES;
+}
+function useDateTimeParts(initialStarts: string, initialEnds: string) {
+  const startParts = splitDateTime(initialStarts);
+  const endParts = splitDateTime(initialEnds);
+  const startDate = ref(startParts.date);
+  const startTime = ref(startParts.time);
+  const endDate = ref(endParts.date);
+  const endTime = ref(endParts.time);
+  function reset(starts = "", ends = "") {
+    const starting = splitDateTime(starts);
+    const ending = splitDateTime(ends);
+    startDate.value = starting.date;
+    startTime.value = starting.time;
+    endDate.value = ending.date;
+    endTime.value = ending.time;
+  }
+  return {
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+    startTimeOptions: computed(() => timeOptionsFor(startTime.value)),
+    endTimeOptions: computed(() => timeOptionsFor(endTime.value)),
+    combinedStart: () => combineDateTime(startDate.value, startTime.value),
+    combinedEnd: () => combineDateTime(endDate.value, endTime.value),
+    reset,
+  };
+}
+const blockParts = useDateTimeParts(block.starts_at, block.ends_at);
+const {
+  startDate: blockStartDate,
+  startTime: blockStartTime,
+  endDate: blockEndDate,
+  endTime: blockEndTime,
+  startTimeOptions: blockStartTimeOptions,
+  endTimeOptions: blockEndTimeOptions,
+} = blockParts;
+const blockEditParts = useDateTimeParts(blockEdit.starts_at, blockEdit.ends_at);
+const {
+  startDate: blockEditStartDate,
+  startTime: blockEditStartTime,
+  endDate: blockEditEndDate,
+  endTime: blockEditEndTime,
+  startTimeOptions: blockEditStartTimeOptions,
+  endTimeOptions: blockEditEndTimeOptions,
+} = blockEditParts;
 
 function dateKey(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -142,9 +211,9 @@ function slotEvent(slot: string) {
 function slotStart(slot: string) {
   return new Date(madridToUtc(`${dateKey(selectedDate.value)}T${slot}`));
 }
-const endOptions = computed(() => {
-  if (!startSlot.value) return [];
-  const starts = slotStart(startSlot.value);
+function endOptionsFor(startSlotValue: string) {
+  if (!startSlotValue) return [];
+  const starts = slotStart(startSlotValue);
   return [1, 2, 3, 4]
     .map((slots) => new Date(starts.getTime() + slots * 30 * 60 * 1000))
     .filter(
@@ -156,13 +225,17 @@ const endOptions = computed(() => {
       (ends) =>
         `${String(Number(madridInput(ends).slice(11, 13))).padStart(2, "0")}:${String(Number(madridInput(ends).slice(14, 16))).padStart(2, "0")}`,
     );
-});
-const selectedDurationSlots = computed(() => {
-  if (!startSlot.value || !endSlot.value) return 0;
-  const [startHour, startMinute] = startSlot.value.split(":").map(Number);
-  const [endHour, endMinute] = endSlot.value.split(":").map(Number);
+}
+const endOptions = computed(() => endOptionsFor(startSlot.value));
+const adminEndOptions = computed(() => endOptionsFor(adminStartSlot.value));
+function durationSlotsFor(startSlotValue: string, endSlotValue: string) {
+  if (!startSlotValue || !endSlotValue) return 0;
+  const [startHour, startMinute] = startSlotValue.split(":").map(Number);
+  const [endHour, endMinute] = endSlotValue.split(":").map(Number);
   return (endHour * 60 + endMinute - (startHour * 60 + startMinute)) / 30;
-});
+}
+const selectedDurationSlots = computed(() => durationSlotsFor(startSlot.value, endSlot.value));
+const adminDurationSlots = computed(() => durationSlotsFor(adminStartSlot.value, adminEndSlot.value));
 function rangeIsUnavailable() {
   if (!startSlot.value || !endSlot.value) return false;
   const starts = slotStart(startSlot.value);
@@ -187,6 +260,13 @@ function durationLabel(slots = selectedDurationSlots.value) {
 }
 function chooseStart() {
   if (!endOptions.value.includes(endSlot.value)) endSlot.value = "";
+}
+function adminChooseStart() {
+  if (!adminEndOptions.value.includes(adminEndSlot.value)) adminEndSlot.value = "";
+}
+function openDateTimePicker(event: Event) {
+  const input = event.currentTarget as HTMLInputElement;
+  try { input.showPicker?.(); } catch { /* Native input remains available for manual entry and its own picker. */ }
 }
 function statusLabel(status: Booking["status"]) {
   return {
@@ -289,6 +369,9 @@ function chooseDate(date: Date) {
   selectedDate.value = new Date(date);
   cursor.value = new Date(date);
   view.value = "week";
+  // Avoid dragging an admin time range selected for a different day onto this one.
+  adminStartSlot.value = "";
+  adminEndSlot.value = "";
 }
 async function reserve() {
   if (!availabilityReady.value || saving.value) return;
@@ -353,15 +436,28 @@ async function decide(id: number, status: "confirmed" | "declined") {
 async function createBlock() {
   error.value = "";
   message.value = "";
+  const startsLocal = blockParts.combinedStart();
+  const endsLocal = blockParts.combinedEnd();
+  if (!startsLocal || !endsLocal) {
+    error.value = "Selecciona la fecha y hora de inicio y de fin.";
+    return;
+  }
   try {
+    const starts = madridToUtc(startsLocal);
+    const ends = madridToUtc(endsLocal);
+    if (new Date(starts) >= new Date(ends)) {
+      error.value = "La hora de inicio debe ser anterior a la hora de fin.";
+      return;
+    }
     await api.post("/admin/bookings/block", {
       ...block,
-      starts_at: madridToUtc(block.starts_at),
-      ends_at: madridToUtc(block.ends_at),
+      starts_at: starts,
+      ends_at: ends,
     });
     block.starts_at = "";
     block.ends_at = "";
     block.note = "";
+    blockParts.reset();
     message.value = "Rango bloqueado en el calendario.";
     await load();
   } catch (err) {
@@ -385,6 +481,7 @@ function openCalendarEvent(event: Booking) {
     blockEdit.ends_at = madridInput(event.ends_at);
     blockEdit.status = event.status;
     blockEdit.note = event.note || "";
+    blockEditParts.reset(blockEdit.starts_at, blockEdit.ends_at);
     return;
   }
   const starts = new Date(event.starts_at);
@@ -444,11 +541,23 @@ async function unlockCalendarBlock() {
 async function saveCalendarBlock() {
   const event = calendarItem.value;
   if (!event || calendarItemIsClass.value) return;
+  const startsLocal = blockEditParts.combinedStart();
+  const endsLocal = blockEditParts.combinedEnd();
+  if (!startsLocal || !endsLocal) {
+    error.value = "Selecciona la fecha y hora de inicio y de fin.";
+    return;
+  }
   try {
+    const starts = madridToUtc(startsLocal);
+    const ends = madridToUtc(endsLocal);
+    if (new Date(starts) >= new Date(ends)) {
+      error.value = "La hora de inicio debe ser anterior a la hora de fin.";
+      return;
+    }
     const { data } = await api.patch(`/admin/bookings/${event.id}/block`, {
       ...blockEdit,
-      starts_at: madridToUtc(blockEdit.starts_at),
-      ends_at: madridToUtc(blockEdit.ends_at),
+      starts_at: starts,
+      ends_at: ends,
     });
     events.value = events.value.map((current) => current.id === event.id ? data : current);
     calendarItem.value = null;
@@ -456,18 +565,27 @@ async function saveCalendarBlock() {
   } catch (err) { error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err); }
 }
 async function createAdminClass() {
+  error.value = "";
+  if (!adminStartSlot.value || !adminEndSlot.value) {
+    error.value = "Selecciona la hora de inicio y de fin.";
+    return;
+  }
   try {
-    const starts = madridToUtc(adminClass.starts_at);
-    if (!classEndsByMadridCutoff(new Date(starts), Number(adminClass.duration_slots))) { error.value = "La clase debe terminar como máximo a las 22:00 (hora de Madrid)."; return; }
-    error.value = "";
+    const starts = slotStart(adminStartSlot.value);
+    const durationSlots = adminDurationSlots.value;
+    if (!classEndsByMadridCutoff(starts, durationSlots)) { error.value = "La clase debe terminar como máximo a las 22:00 (hora de Madrid)."; return; }
     await api.post("/admin/classes", {
-      ...adminClass,
-      starts_at: starts,
+      user_id: adminClass.user_id,
+      subject: adminClass.subject,
+      admin_comment: adminClass.admin_comment,
+      starts_at: starts.toISOString(),
+      duration_slots: durationSlots,
     });
     message.value = "Clase creada y confirmada.";
-    adminClass.starts_at = "";
     adminClass.subject = "";
     adminClass.admin_comment = "";
+    adminStartSlot.value = "";
+    adminEndSlot.value = "";
     await load();
   } catch (err) {
     error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
@@ -480,7 +598,7 @@ onMounted(() => { void load(); void loadStudents(); });
   <section class="page reservations-page">
 
     <p v-if="isAdmin && availabilityError" class="alert" role="alert">No se pudo cargar el calendario. {{ availabilityError }} <button type="button" data-testid="retry-availability" @click="load">Reintentar</button></p>
-    <p v-if="error" class="alert">{{ error }}</p>
+    <p v-if="error" class="alert" role="alert">{{ error }}</p>
     <p v-if="message" class="success-alert">{{ message }}</p>
 
     <div class="reservation-layout">
@@ -693,17 +811,39 @@ onMounted(() => { void load(); void loadStudents(); });
             </select></label
           >
           <form v-if="agendaAction === 'block'" @submit.prevent="createBlock">
+            <div class="range-selectors">
+              <label
+                >Desde (fecha)<input
+                  v-model="blockStartDate"
+                  type="date"
+                  required
+                  @click="openDateTimePicker" /></label
+              ><label
+                >Desde (hora)<select v-model="blockStartTime" required>
+                  <option value="">Hora</option>
+                  <option v-for="time in blockStartTimeOptions" :key="time" :value="time">
+                    {{ time }}
+                  </option>
+                </select></label
+              >
+            </div>
+            <div class="range-selectors">
+              <label
+                >Hasta (fecha)<input
+                  v-model="blockEndDate"
+                  type="date"
+                  required
+                  @click="openDateTimePicker" /></label
+              ><label
+                >Hasta (hora)<select v-model="blockEndTime" required>
+                  <option value="">Hora</option>
+                  <option v-for="time in blockEndTimeOptions" :key="time" :value="time">
+                    {{ time }}
+                  </option>
+                </select></label
+              >
+            </div>
             <label
-              >Desde<input
-                v-model="block.starts_at"
-                type="datetime-local"
-                required /></label
-            ><label
-              >Hasta<input
-                v-model="block.ends_at"
-                type="datetime-local"
-                required /></label
-            ><label
               >Estado<select v-model="block.status">
                 <option value="blocked">Ocupado</option>
                 <option value="unavailable">No disponible</option>
@@ -726,20 +866,27 @@ onMounted(() => { void load(); void loadStudents(); });
                 </option>
               </select></label
             >
-            <label
-              >Fecha y hora<input
-                v-model="adminClass.starts_at"
-                type="datetime-local"
-                required
-            /></label>
-            <label
-              >Duración<select v-model="adminClass.duration_slots">
-                <option :value="1">30 minutos</option>
-                <option :value="2">1 hora</option>
-                <option :value="3">1 hora y 30 minutos</option>
-                <option :value="4">2 horas</option>
-              </select></label
-            >
+            <p class="slots-empty">Día seleccionado: {{ selectedLabel }}</p>
+            <div class="range-selectors">
+              <label
+                >Desde<select v-model="adminStartSlot" @change="adminChooseStart">
+                  <option value="">Hora de inicio</option>
+                  <option v-for="slot in slots" :key="slot" :value="slot">
+                    {{ slot }}
+                  </option>
+                </select></label
+              ><label
+                >Hasta<select v-model="adminEndSlot" :disabled="!adminStartSlot">
+                  <option value="">Hora de fin</option>
+                  <option v-for="slot in adminEndOptions" :key="slot" :value="slot">
+                    {{ slot }}
+                  </option>
+                </select></label
+              >
+            </div>
+            <p v-if="adminDurationSlots" class="range-summary">
+              {{ `Vas a crear ${durationLabel(adminDurationSlots)}` }}
+            </p>
             <label
               >Asignatura<select v-model="adminClass.subject" required>
                 <option value="">Selecciona una asignatura</option>
@@ -757,7 +904,7 @@ onMounted(() => { void load(); void loadStudents(); });
               />
             </label>
             <p class="madrid-time-notice calendar-time-notice">🕒 Horario de Madrid (España peninsular).</p>
-            <button class="primary">Crear clase</button>
+            <button class="primary" :disabled="!adminStartSlot || !adminEndSlot">Crear clase</button>
           </form>
         </header>
       </aside>
@@ -1138,8 +1285,16 @@ onMounted(() => { void load(); void loadStudents(); });
           </button>
         </header>
         <p class="slots-empty">Horario peninsular español (Europe/Madrid).</p><p v-if="error" class="alert" role="alert">{{ error }}</p><div class="calendar-manage-fields">
-          <label>Desde<input v-model="blockEdit.starts_at" type="datetime-local" required /></label>
-          <label>Hasta<input v-model="blockEdit.ends_at" type="datetime-local" required /></label>
+          <label>Desde (fecha)<input v-model="blockEditStartDate" type="date" required @click="openDateTimePicker" /></label>
+          <label>Desde (hora)<select v-model="blockEditStartTime" required>
+            <option value="">Hora</option>
+            <option v-for="time in blockEditStartTimeOptions" :key="time" :value="time">{{ time }}</option>
+          </select></label>
+          <label>Hasta (fecha)<input v-model="blockEditEndDate" type="date" required @click="openDateTimePicker" /></label>
+          <label>Hasta (hora)<select v-model="blockEditEndTime" required>
+            <option value="">Hora</option>
+            <option v-for="time in blockEditEndTimeOptions" :key="time" :value="time">{{ time }}</option>
+          </select></label>
           <label>Estado<select v-model="blockEdit.status"><option value="blocked">Ocupado</option><option value="unavailable">No disponible</option></select></label>
           <label>Nota <small>(opcional)</small><input v-model="blockEdit.note" maxlength="300" /></label>
         </div>

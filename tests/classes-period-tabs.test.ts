@@ -15,7 +15,8 @@ it.each(['admin', 'student'])('clasifica frontera de Madrid y cambio de hora par
   session.user = { role } as any
   vi.mocked(api.get).mockResolvedValue({ data: [item(1, '2026-03-28T22:59:59Z', { is_historical: true }), item(2, '2026-03-28T23:00:00Z', { is_historical: true }), item(3, '2026-03-29T00:30:00Z'), item(4, '2026-03-29T01:30:00Z'), item(5, '2026-03-29T22:00:00Z')] })
   const w = mount(ClassesView); await flushPromises()
-  expect(ids(w)).toEqual(['class-card-4', 'class-card-3', 'class-card-2'])
+  // Hoy ordena ascendente por inicio (al revés que Historial/Futuras, que mantienen el orden descendente).
+  expect(ids(w)).toEqual(['class-card-2', 'class-card-3', 'class-card-4'])
   await tab(w, 0); expect(ids(w)).toEqual(['class-card-1'])
   await tab(w, 2); expect(ids(w)).toEqual(['class-card-5'])
   await tab(w, 1); await vi.advanceTimersByTimeAsync(30000)
@@ -49,7 +50,8 @@ it('clasifica correctamente la hora repetida del cambio de otoño', async () => 
   vi.setSystemTime(new Date('2026-10-25T12:00:00Z'))
   vi.mocked(api.get).mockResolvedValue({ data: [item(1, '2026-10-24T21:59:59Z'), item(2, '2026-10-24T22:00:00Z'), item(3, '2026-10-25T00:30:00Z'), item(4, '2026-10-25T01:30:00Z'), item(5, '2026-10-25T23:00:00Z')] })
   const w = mount(ClassesView); await flushPromises()
-  expect(ids(w)).toEqual(['class-card-4', 'class-card-3', 'class-card-2'])
+  // Hoy ordena ascendente por inicio; Historial/Futuras conservan el orden descendente anterior.
+  expect(ids(w)).toEqual(['class-card-2', 'class-card-3', 'class-card-4'])
   await tab(w, 0); expect(ids(w)).toEqual(['class-card-1'])
   await tab(w, 2); expect(ids(w)).toEqual(['class-card-5'])
   w.unmount()
@@ -102,6 +104,33 @@ it('actualiza el listado tras borrar y editar una clase a otro día', async () =
   expect(ids(v)).toHaveLength(5); expect(ids(v)).not.toContain('class-card-6')
   await tab(v, 2); expect(ids(v)).toEqual(['class-card-6'])
   v.unmount()
+})
+it('ordena Hoy ascendente con entradas desordenadas y empates, conservando Historial/Futuras y los filtros', async () => {
+  vi.mocked(api.get).mockResolvedValue({
+    data: [
+      item(3, '2026-03-29T18:00:00Z'),
+      item(1, '2026-03-29T08:00:00Z'),
+      item(5, '2026-03-29T08:00:00Z', { user_id: 3, user_name: 'Otro', user_email: 'otro@example.com' }),
+      item(2, '2026-03-29T12:00:00Z'),
+      item(10, '2026-03-28T10:00:00Z', { is_historical: true }),
+      item(11, '2026-03-28T09:00:00Z', { is_historical: true }),
+      item(20, '2026-03-30T10:00:00Z'),
+      item(21, '2026-03-30T09:00:00Z'),
+    ],
+  })
+  const w = mount(ClassesView); await flushPromises()
+  // Hoy (pestaña activa por defecto): ascendente por inicio; empate 1/5 (mismo instante) se desempata por id ascendente.
+  expect(ids(w)).toEqual(['class-card-1', 'class-card-5', 'class-card-2', 'class-card-3'])
+  await tab(w, 0) // Historial: conserva el orden descendente anterior
+  expect(ids(w)).toEqual(['class-card-10', 'class-card-11'])
+  await tab(w, 2) // Futuras: conserva el orden descendente anterior
+  expect(ids(w)).toEqual(['class-card-20', 'class-card-21'])
+  await tab(w, 1)
+  // Un filtro no altera el criterio de orden de la pestaña activa.
+  const studentSelect = w.findAll('.class-filters select').find(select => select.text().includes('Todos los alumnos'))!
+  await studentSelect.setValue('user:2')
+  expect(ids(w)).toEqual(['class-card-1', 'class-card-2', 'class-card-3'])
+  w.unmount()
 })
 it('acciones administrativas ordenadas, sin histórico; alumnado sin acciones administrativas', async () => {
   vi.mocked(api.get).mockResolvedValue({ data: [item(1, '2026-03-29T10:00:00Z', { status: 'confirmed', is_historical: true })] })

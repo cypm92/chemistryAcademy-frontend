@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import { strict as assert } from "node:assert";
-import { madridToUtc, madridInput, utcApiTimestamp, normalizeBookingTimes, isBookingEndpoint, shiftCalendarPeriod } from "../src/services/madridTime.ts";
+import { madridToUtc, madridInput, utcApiTimestamp, normalizeBookingTimes, isBookingEndpoint, shiftCalendarPeriod, classEndsByMadridCutoff } from "../src/services/madridTime.ts";
 
 test("booking requests and query-string endpoints receive UTC normalization", () => {
   assert.equal(isBookingEndpoint('/admin/booking-requests'), true);
@@ -34,4 +34,22 @@ test("public booking without timezone still blocks the correct Madrid slot", () 
 test("backend naive UTC timestamps are never interpreted as browser local time", () => {
   assert.equal(utcApiTimestamp("2026-01-15T09:30:00"), "2026-01-15T09:30:00Z");
   assert.equal(utcApiTimestamp("2026-01-15T09:30:00+00:00"), "2026-01-15T09:30:00+00:00");
+});
+
+// Direct coverage of the Madrid 22:00 cutoff used by both createAdminClass and saveCalendarClass
+// (editing a class already asserted this rejection through the form; the admin "create" form filters
+// its end-time options so it never reaches the rejection branch through the UI, so the pure function
+// is exercised directly here with the same start/duration shape the admin create form computes).
+test("a class ending exactly at 22:00 Madrid time passes the cutoff", () => {
+  const starts = new Date(madridToUtc("2026-01-15T21:30"));
+  assert.equal(classEndsByMadridCutoff(starts, 1), true); // 21:30 + 30min = 22:00
+});
+test("a class ending after 22:00 Madrid time on the same day fails the cutoff", () => {
+  const starts = new Date(madridToUtc("2026-01-15T21:30"));
+  assert.equal(classEndsByMadridCutoff(starts, 2), false); // 21:30 + 1h = 22:30
+  assert.equal(classEndsByMadridCutoff(starts, 4), false); // 21:30 + 2h = 23:30
+});
+test("a class ending on the following Madrid calendar day fails the cutoff", () => {
+  const starts = new Date(madridToUtc("2026-01-15T23:30"));
+  assert.equal(classEndsByMadridCutoff(starts, 2), false); // 23:30 + 1h -> 00:30 next day
 });
