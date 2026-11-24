@@ -42,11 +42,10 @@ async function save() {
       <p v-if="busy" role="status">Procesando…</p>
       <p v-if="error" class="alert" role="alert">{{ error }}</p>
       <form v-if="loaded" novalidate @submit.prevent="save">
-        <label>Antelación del recordatorio<select v-model="preset" :disabled="busy"><option value="1440">24 horas</option><option value="360">6 horas</option><option value="120">2 horas</option><option value="30">30 minutos</option><option value="custom">Personalizada</option></select></label>
+        <label>Antelación del recordatorio<select v-model="preset" data-initial-focus :disabled="busy"><option value="1440">24 horas</option><option value="360">6 horas</option><option value="120">2 horas</option><option value="30">30 minutos</option><option value="custom">Personalizada</option></select></label>
         <label v-if="preset === 'custom'">Intervalo personalizado (minutos)<input v-model.number="minutes" type="number" min="1" max="525600" step="1" :disabled="busy" /><small>Entre 1 y 525600 minutos.</small></label>
         <button type="submit" class="primary" :disabled="busy">Guardar</button>
       </form>
-      <button data-initial-focus type="button" class="secondary" :disabled="busy" @click="open = false">Cerrar</button>
     </AccessibleDialog>
   </div>
 </template>

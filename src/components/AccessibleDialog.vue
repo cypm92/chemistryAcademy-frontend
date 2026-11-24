@@ -6,7 +6,11 @@ const dialog = ref<HTMLElement | null>(null)
 const origin = document.activeElement as HTMLElement | null
 const originContainer = origin?.parentElement
 function focusInitial() {
-  const target = dialog.value?.querySelector<HTMLButtonElement>('[data-initial-focus]:not(:disabled)')
+  // Si falla la carga (p.ej. error de red) no existe [data-initial-focus] porque el formulario
+  // no se llegó a montar: cae a cualquier control enfocable del diálogo (p.ej. el cierre) antes
+  // que al propio contenedor role="dialog", para no dejar el foco inicial en un nodo no interactivo.
+  const target = dialog.value?.querySelector<HTMLElement>('[data-initial-focus]:not(:disabled)')
+    ?? dialog.value?.querySelector<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], [tabindex="0"]')
   ;(target ?? dialog.value)?.focus()
 }
 function focusStable() { dialog.value?.focus() }
@@ -35,7 +39,16 @@ function keydown(event: KeyboardEvent) {
 <template>
   <div class="modal dialog-overlay" @click.self="!busy && emit('close')">
     <section ref="dialog" class="panel dialog-card" role="dialog" aria-modal="true" :aria-label="title" tabindex="-1">
-      <h2>{{ title }}</h2>
+      <header class="dialog-head">
+        <h2>{{ title }}</h2>
+        <button
+          type="button"
+          class="icon-button dialog-close"
+          :aria-label="`Cerrar ${title}`"
+          :disabled="busy"
+          @click="!busy && emit('close')"
+        >×</button>
+      </header>
       <slot />
     </section>
   </div>
@@ -43,4 +56,8 @@ function keydown(event: KeyboardEvent) {
 <style scoped>
 .dialog-overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1rem; background: rgba(0,0,0,.5); }
 .dialog-card { width: min(100%, 32rem); max-height: 90vh; overflow: auto; }
+.dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.dialog-head h2 { margin: 0; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.dialog-close { flex: 0 0 auto; font-size: 20px; line-height: 1; }
+.dialog-close:disabled { cursor: not-allowed; opacity: .5; }
 </style>
