@@ -35,6 +35,6 @@ it('vuelve a consultar tras eliminar una clase', async () => {
   vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/admin/teams/unlinked-incidents' ? { count, incidents: [] } : [item] }) as any)
   vi.mocked(api.delete).mockImplementation(async () => { count = 3; return {} as any })
   const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
-  const w = mount(ClassesView); await flushPromises(); await w.findAll('button').find(b => b.text() === 'Eliminar clase')!.trigger('click'); await flushPromises()
+  const w = mount(ClassesView); await flushPromises(); await w.findAll('[role=tab]')[2].trigger('click'); await w.findAll('button').find(b => b.text() === 'Eliminar clase')!.trigger('click'); await flushPromises()
   expect(api.delete).toHaveBeenCalledWith('/admin/classes/5'); expect(w.get('[role=alert]').text()).toContain('Hay 3 incidencias'); confirm.mockRestore(); w.unmount()
 })

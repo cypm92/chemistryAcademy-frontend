@@ -10,8 +10,8 @@ import { session } from '../src/services/session'
 vi.mock('../src/services/api', () => ({ api: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() }, apiUrl: (s: string) => s, errorMessage: () => 'Error de red' }))
 const status = { configured: true, connected: false, account_label: null, needs_reconnect: false }
 const item = { id: 1, starts_at: '2026-11-04T10:00:00Z', ends_at: '2026-11-04T11:00:00Z', status: 'confirmed', management_status: null, is_historical: false, topic: 'Química', admin_comment: '', user_id: 2, user_name: 'Alumna', user_email: 'a@example.com', materials: [], teams_status: 'error' }
-beforeEach(() => { session.user = { role: 'admin', name: 'Admin', email: 'admin@example.test' } as any; vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/admin/integrations/microsoft' ? status : url === '/admin/public-resources' ? { exams: [], forms: [], videos: [], documents: [] } : url === '/admin/notification-settings' ? { reminder_interval_minutes: 1440 } : url === '/admin/classes' ? [item] : [] }) as any) })
-afterEach(() => { vi.clearAllMocks(); vi.unstubAllEnvs(); window.history.replaceState({}, '', '/') })
+beforeEach(() => { vi.setSystemTime(new Date('2026-11-04T12:00:00Z')); session.user = { role: 'admin', name: 'Admin', email: 'admin@example.test' } as any; vi.mocked(api.get).mockImplementation(async (url) => ({ data: url === '/admin/integrations/microsoft' ? status : url === '/admin/public-resources' ? { exams: [], forms: [], videos: [], documents: [] } : url === '/admin/notification-settings' ? { reminder_interval_minutes: 1440 } : url === '/admin/classes' ? [item] : [] }) as any) })
+afterEach(() => { vi.useRealTimers(); vi.clearAllMocks(); vi.unstubAllEnvs(); window.history.replaceState({}, '', '/') })
 it('ofrece Microsoft solo en perfil de administración', async () => {
   const w = mount(ProfileView); await flushPromises()
   expect(w.text()).toContain('Microsoft Teams'); expect(w.text()).toContain('Desconectada'); expect(w.text()).toContain('Conectar')

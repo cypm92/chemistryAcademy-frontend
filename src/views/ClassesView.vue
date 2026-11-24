@@ -74,10 +74,12 @@ function refreshClock() {
     .map(item => new Date(item.ends_at).getTime())
     .filter(end => end > now.value)
     .sort((a, b) => a - b)[0];
-  if (next !== undefined) clockTimer = setTimeout(refreshClock, Math.min(next - now.value, 2_147_483_647));
+  // Refresh at least every minute, including across Madrid midnight and DST changes.
+  const nextMinute = 60_000 - now.value % 60_000;
+  clockTimer = setTimeout(refreshClock, Math.min(next === undefined ? nextMinute : next - now.value, nextMinute));
 }
 watch(classes, refreshClock);
-onMounted(() => { window.addEventListener('focus', refreshClock); document.addEventListener('visibilitychange', refreshClock); });
+onMounted(() => { refreshClock(); window.addEventListener('focus', refreshClock); document.addEventListener('visibilitychange', refreshClock); });
 onUnmounted(() => { if (clockTimer) clearTimeout(clockTimer); window.removeEventListener('focus', refreshClock); document.removeEventListener('visibilitychange', refreshClock); });
 function hasEnded(item: AcademyClass) {
   return new Date(item.ends_at).getTime() <= now.value;
@@ -96,8 +98,11 @@ const filters = reactive({
   dateFrom: "",
   dateTo: "",
   material: "",
-  historical: "current",
 });
+function openDatePicker(event: Event) {
+  const input = event.currentTarget as HTMLInputElement;
+  try { input.showPicker?.(); } catch { /* Native input remains available for manual entry and its own picker. */ }
+}
 const editForm = reactive({
   date: "",
   time: "",
@@ -138,6 +143,19 @@ const students = computed(() =>
     (a, b) => a.user_name.localeCompare(b.user_name),
   ),
 );
+const periodTabs = ['history', 'today', 'future'] as const;
+const activeTab = ref<(typeof periodTabs)[number]>('today');
+function onPeriodKey(event: KeyboardEvent, tab: (typeof periodTabs)[number]) {
+  const index = periodTabs.indexOf(tab);
+  const next = event.key === 'ArrowRight' ? (index + 1) % periodTabs.length
+    : event.key === 'ArrowLeft' ? (index + periodTabs.length - 1) % periodTabs.length
+    : event.key === 'Home' ? 0 : event.key === 'End' ? periodTabs.length - 1 : -1;
+  if (next < 0) return;
+  event.preventDefault();
+  activeTab.value = periodTabs[next];
+  nextTick(() => document.getElementById(`classes-tab-${periodTabs[next]}`)?.focus());
+}
+const today = computed(() => madridInput(new Date(now.value)).slice(0, 10));
 const filtered = computed(() =>
   classes.value.filter((item) => {
     const search = filters.search.trim().toLocaleLowerCase();
@@ -169,12 +187,7 @@ const filtered = computed(() =>
           : item.materials.some(
               (material) => material.id === Number(filters.material),
             ));
-    const matchesHistorical =
-      !isAdmin.value ||
-      filters.historical === "all" ||
-      (filters.historical === "historical"
-        ? item.is_historical
-        : !item.is_historical);
+    const matchesTab = activeTab.value === 'history' ? starts < today.value : activeTab.value === 'today' ? starts === today.value : starts > today.value;
     return (
       matchesSearch &&
       matchesStudent &&
@@ -182,32 +195,10 @@ const filtered = computed(() =>
       matchesFrom &&
       matchesTo &&
       matchesMaterial &&
-      matchesHistorical
+      matchesTab
     );
-  }),
+  }).sort((a, b) => new Date(b.starts_at).getTime() - new Date(a.starts_at).getTime() || a.id - b.id),
 );
-const classSections = computed(() => {
-  const pending = filtered.value.filter((item) => item.status === "requested");
-  const remaining = filtered.value.filter(
-    (item) => item.status !== "requested",
-  );
-  return [
-    ...(pending.length
-      ? [
-          {
-            id: "pending",
-            title: isAdmin.value
-              ? "Solicitudes pendientes"
-              : "Reservas pendientes de confirmación",
-            items: pending,
-          },
-        ]
-      : []),
-    ...(remaining.length
-      ? [{ id: "classes", title: "Clases e historial", items: remaining }]
-      : []),
-  ];
-});
 function statusLabel(status: AcademyClass["status"] | 'paid' | 'pending_payment') {
   return {
     requested: "Reservada",
@@ -295,23 +286,6 @@ async function uploadAttachment(item: AcademyClass, event: Event) {
   } finally {
     uploadingId.value = null;
     input.value = "";
-  }
-}
-async function setHistorical(item: AcademyClass, isHistorical: boolean) {
-  error.value = "";
-  success.value = "";
-  try {
-    const { data } = await api.patch(`/admin/classes/${item.id}/historical`, {
-      is_historical: isHistorical,
-    });
-    classes.value = classes.value.map((current) =>
-      current.id === item.id ? data : current,
-    );
-    success.value = isHistorical
-      ? "Clase movida al histórico."
-      : "Clase restaurada a la vista habitual.";
-  } catch (err) {
-    error.value = err instanceof Error && /hora (no existe|es ambigua)|fecha y hora válidas/.test(err.message) ? err.message : errorMessage(err);
   }
 }
 async function deleteClass(item: AcademyClass) {
@@ -494,7 +468,11 @@ onMounted(load);
     <p v-if="error" class="alert">{{ error }}</p>
     <p v-if="success" class="success-alert">{{ success }}</p>
     <button v-if="classesStale && !loading" type="button" @click="load">Actualizar clases</button>
-    <section class="class-filters">
+    <nav class="admin-tabs classes-tabs" role="tablist" aria-label="Periodo de las clases">
+      <button v-for="tab in periodTabs" :id="`classes-tab-${tab}`" :key="tab" type="button" role="tab" aria-controls="classes-panel" :tabindex="activeTab === tab ? 0 : -1" :aria-selected="activeTab === tab" :class="{ active: activeTab === tab }" @click="activeTab = tab" @keydown="onPeriodKey($event, tab)">{{ { history: 'Historial', today: 'Hoy', future: 'Futuras' }[tab] }}</button>
+    </nav>
+    <div id="classes-panel" role="tabpanel" :aria-labelledby="`classes-tab-${activeTab}`">
+    <section class="class-filters" :class="{ 'class-filters-admin': isAdmin }">
       <label class="classes-search"
         ><span>⌕</span
         ><input
@@ -509,10 +487,6 @@ onMounted(load);
         >
           {{ student.user_name }}{{ student.user_id === null ? ` · ${student.user_email} (invitado)` : "" }}
         </option></select
-      ><select v-if="isAdmin" v-model="filters.historical">
-        <option value="current">Clases habituales</option>
-        <option value="historical">Solo histórico</option>
-        <option value="all">Todas las clases</option></select
       ><select v-model="filters.status">
         <option value="">Todos los estados</option>
         <option value="requested">Reservadas</option>
@@ -525,27 +499,16 @@ onMounted(load);
         <option value="">Cualquier material</option>
         <option value="attached">Con archivos</option>
         <option value="none">Sin archivos</option></select
-      ><label>Desde<input v-model="filters.dateFrom" type="date" /></label
-      ><label>Hasta<input v-model="filters.dateTo" type="date" /></label>
+      ><label>Desde<input v-model="filters.dateFrom" type="date" @click="openDatePicker" /></label
+      ><label>Hasta<input v-model="filters.dateTo" type="date" @click="openDatePicker" /></label>
+      <span class="class-count">{{ filtered.length }} {{ filtered.length === 1 ? 'clase' : 'clases' }}</span>
     </section>
     <p v-if="loading" class="classes-empty">Cargando clases...</p>
-    <div v-else-if="!filtered.length" class="class-section-heading">
-      <p class="classes-empty">No hay clases que coincidan con estos filtros.</p>
-      <span class="class-count">0 clases</span>
-    </div>
-    <div v-else class="class-sections">
-      <section
-        v-for="(section, index) in classSections"
-        :key="section.id"
-        class="class-section"
-      >
-        <div class="class-section-heading">
-          <h2>{{ section.title }}</h2>
-          <span v-if="index === 0" class="class-count">{{ filtered.length }} {{ filtered.length === 1 ? 'clase' : 'clases' }}</span>
-        </div>
-        <div class="class-list">
+    <div v-else class="class-results">
+      <div class="class-list" aria-label="Listado de clases">
+        <p v-if="!filtered.length" class="classes-empty">No hay clases que coincidan con estos filtros.</p>
           <article
-            v-for="item in section.items"
+            v-for="item in filtered"
             :key="item.id"
             :id="'class-card-' + item.id" tabindex="-1"
             class="class-card"
@@ -592,7 +555,6 @@ onMounted(load);
                   </div>
                 </div>
                 <span v-else :class="['class-status', item.status]">{{ statusLabel(item.status) }}</span>
-                <span v-if="item.is_historical" class="class-status historical">Histórica</span>
 
               </div>
               <p class="class-student">
@@ -726,14 +688,6 @@ onMounted(load);
               >
                 Cancelar clase</button
               ><button
-                v-if="true"
-                class="historical-button"
-                @click="setHistorical(item, !item.is_historical)"
-              >
-                {{
-                  item.is_historical ? "Restaurar clase" : "Mover a histórico"
-                }}</button
-              ><button
                 v-if="canDelete(item)"
                 class="delete-class-button"
                 @click="deleteClass(item)"
@@ -743,8 +697,8 @@ onMounted(load);
               </div>
             </div>
           </article>
-        </div>
-      </section>
+      </div>
+    </div>
     </div>
     <MaterialViewer
       :material="selectedMaterial"

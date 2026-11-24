@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import ClassesView from '../src/views/ClassesView.vue'
 import { api } from '../src/services/api'
@@ -13,7 +13,8 @@ async function setup(extra = {}, role = 'admin') {
   const w = mount(ClassesView, { attachTo: document.body }); await flushPromises(); return w
 }
 function button(text: string) { return [...document.querySelectorAll('button')].find(b => b.textContent?.includes(text))! }
-afterEach(() => { document.body.innerHTML = ''; vi.clearAllMocks() })
+beforeEach(() => { vi.setSystemTime(new Date('2026-11-04T12:00:00Z')) })
+afterEach(() => { vi.useRealTimers(); document.body.innerHTML = ''; vi.clearAllMocks() })
 
 it('confirma explícitamente antes de solicitar una nueva creación', async () => {
   const w = await setup(); button('Comprobar Outlook').click(); await flushPromises()

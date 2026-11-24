@@ -15,7 +15,7 @@ test('guest classes retain independent identities and admin controls without upl
   assert.match(view, /<div v-if="isAdmin" class="class-actions">/);
   assert.match(view, /v-if="item\.user_id !== null && item\.status === 'confirmed'"\s+class="class-upload"/);
   assert.match(view, /v-else-if="item\.user_id !== null" class="attach-hint"/);
-  for (const action of ['editClass(item)', 'cancelAdminClass(item)', 'setHistorical(item, !item.is_historical)']) {
+  for (const action of ['editClass(item)', 'cancelAdminClass(item)']) {
     assert.ok(view.includes(`@click="${action}"`), `missing ${action}`);
   }
 });
