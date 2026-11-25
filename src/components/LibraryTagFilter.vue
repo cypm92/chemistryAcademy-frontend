@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref } from 'vue'
 import type { Tag } from '../types'
 
 const props = defineProps<{ modelValue: string[]; available: Tag[] }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string[]] }>()
 const open = ref(false)
+const root = ref<HTMLElement | null>(null)
 const triggerButton = ref<HTMLButtonElement | null>(null)
 const search = ref('')
 const normalize = (value: string) => value.trim().toLowerCase()
@@ -15,8 +16,23 @@ const filteredAvailable = computed(() => {
   return query ? props.available.filter(tag => normalize(tag.name).includes(query)) : props.available
 })
 
-function togglePopup() { open.value = !open.value }
-function closePopup() { open.value = false; search.value = ''; void nextTick(() => triggerButton.value?.focus()) }
+// Cierre al pulsar fuera: el listener se añade a document solo mientras el popup está abierto
+// (togglePopup/closePopup) y se retira siempre al cerrar o desmontar, para no dejar listeners
+// colgados. Comprueba que el clic no cayó dentro del elemento raíz del componente.
+function clickOutside(event: MouseEvent) {
+  if (root.value && event.target instanceof Node && !root.value.contains(event.target)) closePopup()
+}
+function togglePopup() {
+  open.value = !open.value
+  if (open.value) document.addEventListener('mousedown', clickOutside)
+  else document.removeEventListener('mousedown', clickOutside)
+}
+function closePopup() {
+  open.value = false; search.value = ''
+  document.removeEventListener('mousedown', clickOutside)
+  void nextTick(() => triggerButton.value?.focus())
+}
+onBeforeUnmount(() => document.removeEventListener('mousedown', clickOutside))
 function toggleTag(name: string) {
   emit('update:modelValue', props.modelValue.includes(name) ? props.modelValue.filter(value => value !== name) : [...props.modelValue, name])
 }
@@ -26,7 +42,7 @@ function panelKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="library-tag-filter">
+  <div ref="root" class="library-tag-filter">
     <button ref="triggerButton" type="button" class="secondary small library-tag-trigger" aria-label="Mostrar etiquetas disponibles" :aria-expanded="open" @click="togglePopup">Etiquetas ▾</button>
     <div v-if="modelValue.length" class="library-tag-chips">
       <span v-for="tag in modelValue" :key="tag" class="library-tag-chip">{{ tag }}<button type="button" :aria-label="`Quitar etiqueta ${tag}`" @click="toggleTag(tag)">×</button></span>
