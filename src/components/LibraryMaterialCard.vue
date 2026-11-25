@@ -92,6 +92,7 @@ async function toggleFavorite() {
         <button class="primary small action-open" @click="emit('open', item)">Abrir material</button>
         <button v-if="session.user?.role === 'admin'" type="button" class="edit small action-edit" :aria-label="`Editar material ${item.title}`" @click="emit('edit', item)">Editar</button>
         <button v-if="session.user?.role === 'admin'" class="edit small move-material-button action-move" @click="emit('move', item)">Mover</button>
+        <button v-if="session.user?.role === 'admin'" class="danger small action-delete" @click="deleteMaterial">Eliminar</button>
         <button v-if="session.user?.role === 'admin' && canReorder" type="button" class="secondary small action-up" :aria-label="`Subir ${item.title}`" :disabled="first || ordering" @click="emit('reorder', item, 'up')">↑</button>
         <span class="card-actions-break" aria-hidden="true"></span>
         <button v-if="session.user?.role === 'admin' && sharingFailed && !permissionTimeoutToast" type="button" class="info small action-share" :aria-label="`Reintentar accesos: ${item.title}`" @click="emit('retrySharing')">Reintentar accesos</button>
@@ -100,7 +101,6 @@ async function toggleFavorite() {
         <button v-if="session.user?.role === 'admin' && canReorder" type="button" class="secondary small action-down" :aria-label="`Bajar ${item.title}`" :disabled="last || ordering" @click="emit('reorder', item, 'down')">↓</button>
         <span class="card-actions-break" aria-hidden="true"></span>
         <button v-if="item.can_download" class="secondary small action-download" @click="download">Descargar</button>
-        <button v-if="session.user?.role === 'admin'" class="danger small action-delete" @click="deleteMaterial">Eliminar</button>
       </div>
     </div>
   </article>
