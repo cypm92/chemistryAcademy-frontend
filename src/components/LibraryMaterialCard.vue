@@ -121,8 +121,7 @@ async function toggleFavorite() {
       </div>
       <StudentMaterialsModal v-if="selectedStudent" :student="selectedStudent" @close="closeStudent" @changed="emit('changed')" />
       <div class="card-actions">
-        <button class="primary small action-open" @click="emit('open', item)">Abrir</button>
-        <button class="primary small action-open-desktop" @click="emit('open', item)">Abrir material</button>
+        <button class="primary small action-open" @click="emit('open', item)"><span>Abrir</span><span class="action-open-suffix"> material</span></button>
         <button v-if="session.user?.role === 'admin'" type="button" class="edit small action-edit action-edit-desktop" :aria-label="`Editar material ${item.title}`" @click="emit('edit', item)">Editar</button>
         <button v-if="session.user?.role === 'admin'" class="edit small move-material-button action-move action-move-desktop" @click="emit('move', item)">Mover</button>
         <button v-if="session.user?.role === 'admin'" class="danger small action-delete action-delete-desktop" @click="deleteMaterial">Eliminar</button>
@@ -157,8 +156,10 @@ async function toggleFavorite() {
   .action-delete-desktop,
   .action-share-desktop,
   .action-favorite-desktop,
-  .action-download-desktop,
-  .action-open-desktop {
+  .action-download-desktop {
+    display: none;
+  }
+  .action-open-suffix {
     display: none;
   }
   .card-actions {
@@ -185,9 +186,6 @@ async function toggleFavorite() {
 
 @media(min-width: 621px) {
   .action-mobile-menu {
-    display: none;
-  }
-  .action-open {
     display: none;
   }
 }
