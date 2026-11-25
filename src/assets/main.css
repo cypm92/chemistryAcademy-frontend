@@ -359,6 +359,7 @@ button.class-status:focus-visible, .class-request-actions button:focus-visible, 
 .class-actions .class-upload input { display: block; position: absolute; width: 1px; height: 1px; opacity: 0; }
 .class-actions .class-upload:focus-within, .class-actions button:focus-visible { outline: 2px solid var(--brand-green); outline-offset: 2px; }
 @media (max-width: 620px) {
+  .classes-sticky-header { position: static; max-height: none; overflow-y: visible; }
   .classes-tabs { gap: 2px; }
   .classes-tabs button { min-width: 0; padding: 10px 4px; }
   .class-card { grid-template-columns: 62px minmax(0, 1fr); }
@@ -400,6 +401,8 @@ button.class-status:focus-visible, .class-request-actions button:focus-visible, 
   .folder-tiles { grid-template-columns:minmax(0,1fr) }
   .folder-tile, .folder-tile-open { min-width:0 }
   .folder-tile b { overflow-wrap:anywhere }
+  .file-list .material-info { grid-template-columns:minmax(0,1fr) }
+  .file-list .card-actions { grid-column:1; grid-row:auto; justify-content:flex-start }
 }
 
 /* Botones de LibraryMaterialCard pegados/solapados en móvil (reporte real de usuario en su
