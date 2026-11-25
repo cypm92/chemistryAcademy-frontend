@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medidor de Botones - LibraryMaterialCard</title>
+    <style>
+        body { font-family: monospace; white-space: pre; background: #f0f0f0; padding: 20px; }
+        .report { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        h2 { margin: 20px 0 10px; color: #333; }
+        .button-box { margin: 5px 0; padding: 5px; background: #f9f9f9; border-left: 3px solid #0066cc; }
+        .ok { border-left-color: #00aa00; color: #00aa00; }
+        .warning { border-left-color: #ff9900; color: #ff9900; }
+        .error { border-left-color: #cc0000; color: #cc0000; }
+    </style>
+</head>
+<body>
+    <h1>Medidor de Botones - LibraryMaterialCard</h1>
+    <p>Abre la página de Biblioteca en 320x700 (móvil) y 1024x768 (escritorio).</p>
+    <p>Luego ejecuta este script en la consola del navegador (F12 → Console):</p>
+    
+    <script>
+        // Inyecta un script en la página abierta para medir los botones
+        window.measureLibraryButtons = function() {
+            const results = [];
+            
+            function checkCard(cardIndex = 0) {
+                const card = document.querySelectorAll('.material-card')[cardIndex];
+                if (!card) return { error: 'No card found at index ' + cardIndex };
+                
+                const viewport = { width: window.innerWidth, height: window.innerHeight };
+                
+                const openBtn = card.querySelector('.action-open');
+                const openBtnDesktop = card.querySelector('.action-open-desktop');
+                const upBtn = card.querySelector('.action-up');
+                const downBtn = card.querySelector('.action-down');
+                const title = card.querySelector('.material-info h3');
+                const meta = card.querySelector('.material-meta');
+                
+                const measurements = {
+                    viewport,
+                    title: title ? {
+                        text: title.textContent,
+                        rect: {
+                            top: Math.round(title.getBoundingClientRect().top),
+                            left: Math.round(title.getBoundingClientRect().left),
+                            bottom: Math.round(title.getBoundingClientRect().bottom),
+                            right: Math.round(title.getBoundingClientRect().right),
+                            width: Math.round(title.getBoundingClientRect().width),
+                            height: Math.round(title.getBoundingClientRect().height)
+                        }
+                    } : null,
+                    meta: meta ? {
+                        text: Array.from(meta.querySelectorAll('span')).map(s => s.textContent).join(' · '),
+                        rect: {
+                            top: Math.round(meta.getBoundingClientRect().top),
+                            left: Math.round(meta.getBoundingClientRect().left),
+                            bottom: Math.round(meta.getBoundingClientRect().bottom),
+                            right: Math.round(meta.getBoundingClientRect().right),
+                            width: Math.round(meta.getBoundingClientRect().width),
+                            height: Math.round(meta.getBoundingClientRect().height)
+                        }
+                    } : null,
+                    buttons: {
+                        openBtn: openBtn ? {
+                            visible: openBtn.offsetParent !== null,
+                            text: openBtn.textContent,
+                            rect: {
+                                top: Math.round(openBtn.getBoundingClientRect().top),
+                                left: Math.round(openBtn.getBoundingClientRect().left),
+                                bottom: Math.round(openBtn.getBoundingClientRect().bottom),
+                                right: Math.round(openBtn.getBoundingClientRect().right),
+                                width: Math.round(openBtn.getBoundingClientRect().width),
+                                height: Math.round(openBtn.getBoundingClientRect().height)
+                            }
+                        } : null,
+                        openBtnDesktop: openBtnDesktop ? {
+                            visible: openBtnDesktop.offsetParent !== null,
+                            text: openBtnDesktop.textContent,
+                            rect: {
+                                top: Math.round(openBtnDesktop.getBoundingClientRect().top),
+                                left: Math.round(openBtnDesktop.getBoundingClientRect().left),
+                                bottom: Math.round(openBtnDesktop.getBoundingClientRect().bottom),
+                                right: Math.round(openBtnDesktop.getBoundingClientRect().right),
+                                width: Math.round(openBtnDesktop.getBoundingClientRect().width),
+                                height: Math.round(openBtnDesktop.getBoundingClientRect().height)
+                            }
+                        } : null,
+                        upBtn: upBtn ? {
+                            visible: upBtn.offsetParent !== null,
+                            text: upBtn.textContent,
+                            rect: {
+                                top: Math.round(upBtn.getBoundingClientRect().top),
+                                left: Math.round(upBtn.getBoundingClientRect().left),
+                                bottom: Math.round(upBtn.getBoundingClientRect().bottom),
+                                right: Math.round(upBtn.getBoundingClientRect().right),
+                                width: Math.round(upBtn.getBoundingClientRect().width),
+                                height: Math.round(upBtn.getBoundingClientRect().height)
+                            }
+                        } : null,
+                        downBtn: downBtn ? {
+                            visible: downBtn.offsetParent !== null,
+                            text: downBtn.textContent,
+                            rect: {
+                                top: Math.round(downBtn.getBoundingClientRect().top),
+                                left: Math.round(downBtn.getBoundingClientRect().left),
+                                bottom: Math.round(downBtn.getBoundingClientRect().bottom),
+                                right: Math.round(downBtn.getBoundingClientRect().right),
+                                width: Math.round(downBtn.getBoundingClientRect().width),
+                                height: Math.round(downBtn.getBoundingClientRect().height)
+                            }
+                        } : null
+                    }
+                };
+                
+                return measurements;
+            }
+            
+            console.log('Measurements:', checkCard());
+            return checkCard();
+        };
+        
+        console.log('✓ measureLibraryButtons() loaded. Run: window.measureLibraryButtons()');
+    </script>
+    
+    <h2>Pasos para verificar:</h2>
+    
+    <div class="report">
+        <strong>MÓVIL (320×700):</strong>
+        <ol>
+            <li>Abre DevTools (F12)</li>
+            <li>Abre la pestaña "Console"</li>
+            <li>Ajusta el viewport a 320×700 (DevTools → más opciones → "Device toolbar" o similar)</li>
+            <li>Navega a Biblioteca</li>
+            <li>Entra en una carpeta con 2+ archivos (ej: Química/Equilibrio químico)</li>
+            <li>Escribe en la consola: <code>window.measureLibraryButtons()</code></li>
+            <li>Verifica:
+                - openBtn debe estar visible (visible: true) y tener texto "Abrir"
+                - upBtn y downBtn deben estar visible
+                - Ninguno de los botones debe solaparse (bottom de título < top de botones)
+            </li>
+        </ol>
+    </div>
+    
+    <div class="report">
+        <strong>ESCRITORIO (>620px, ej: 1024×768):</strong>
+        <ol>
+            <li>Ajusta el viewport a 1024×768</li>
+            <li>Escribe en la consola: <code>window.measureLibraryButtons()</code></li>
+            <li>Verifica:
+                - openBtn NO debe estar visible (visible: false) o no debe existir
+                - openBtnDesktop DEBE estar visible con texto "Abrir material"
+                - upBtn, downBtn, compartido, favorito, descargar/eliminar deben estar en 2 filas
+            </li>
+        </ol>
+    </div>
+    
+    <h2>Cambios implementados:</h2>
+    <div class="report">
+        • MÓVIL (≤620px):
+          - Nuevo grid 3 columnas en .card-actions
+          - Botón "Abrir" (action-open) en fila 1, columnas 2-3 (arriba derecha)
+          - Botones "↑" y "↓" en fila 2, columnas 2-3 (segunda fila)
+          - Texto del botón: "Abrir" (en lugar de "Abrir material")
+          
+        • ESCRITORIO (≥621px):
+          - Ocultar action-open (móvil)
+          - Mostrar action-open-desktop "Abrir material"
+          - Layout original sin cambios
+    </div>
+</body>
+</html>

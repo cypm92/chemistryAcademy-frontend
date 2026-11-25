@@ -121,7 +121,8 @@ async function toggleFavorite() {
       </div>
       <StudentMaterialsModal v-if="selectedStudent" :student="selectedStudent" @close="closeStudent" @changed="emit('changed')" />
       <div class="card-actions">
-        <button class="primary small action-open" @click="emit('open', item)">Abrir material</button>
+        <button class="primary small action-open" @click="emit('open', item)">Abrir</button>
+        <button class="primary small action-open-desktop" @click="emit('open', item)">Abrir material</button>
         <button v-if="session.user?.role === 'admin'" type="button" class="edit small action-edit action-edit-desktop" :aria-label="`Editar material ${item.title}`" @click="emit('edit', item)">Editar</button>
         <button v-if="session.user?.role === 'admin'" class="edit small move-material-button action-move action-move-desktop" @click="emit('move', item)">Mover</button>
         <button v-if="session.user?.role === 'admin'" class="danger small action-delete action-delete-desktop" @click="deleteMaterial">Eliminar</button>
@@ -156,13 +157,42 @@ async function toggleFavorite() {
   .action-delete-desktop,
   .action-share-desktop,
   .action-favorite-desktop,
-  .action-download-desktop {
+  .action-download-desktop,
+  .action-open-desktop {
+    display: none;
+  }
+  .card-actions {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 8px;
+    margin-top: 18px;
+    justify-items: center;
+    align-items: center;
+  }
+  .action-open {
+    grid-column: 2 / 4;
+    grid-row: 1;
+    justify-self: flex-end;
+    align-self: center;
+  }
+  .action-up {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .action-down {
+    grid-column: 3;
+    grid-row: 2;
+  }
+  .card-actions-break {
     display: none;
   }
 }
 
 @media(min-width: 621px) {
   .action-mobile-menu {
+    display: none;
+  }
+  .action-open {
     display: none;
   }
 }
