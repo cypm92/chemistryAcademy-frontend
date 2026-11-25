@@ -49,7 +49,7 @@ it.each(['admin', 'student'] as const)('%s: búsqueda de texto parcial e insensi
   wrapper.unmount()
 })
 
-it.each(['admin', 'student'] as const)('%s: popup de etiquetas con chips, filtro AND y alcance', async role => {
+it.each(['admin', 'student'] as const)('%s: popup de etiquetas con chips, filtro OR y alcance', async role => {
   const wrapper = await view(role)
   const scope = wrapper.get('.search-scope input')
   const chooseTag = async (name: string) => {
@@ -65,7 +65,8 @@ it.each(['admin', 'student'] as const)('%s: popup de etiquetas con chips, filtro
   expect(optionNames).toEqual(expect.arrayContaining(['Química', 'Luz', 'Extra']))
   expect(optionNames.includes('SoloAdmin')).toBe(role === 'admin')
 
-  // Carpeta Physics -> Óptica(Luz), Otro(Química+Extra). Filtro AND por una etiqueta.
+  // Carpeta Physics -> Óptica(Luz), Otro(Química+Extra). Filtro por una sola etiqueta: coincide
+  // igual con OR que con AND.
   await chooseTag('Química')
   expect(titles(wrapper)).toEqual(['Otro'])
   expect(wrapper.get('.library-tag-chip').text()).toContain('Química')
@@ -75,9 +76,10 @@ it.each(['admin', 'student'] as const)('%s: popup de etiquetas con chips, filtro
   await flushPromises()
   expect(titles(wrapper)).toEqual(['Ácidos', 'Otro'])
 
-  // AND real: añadir una segunda etiqueta reduce el resultado, no lo amplía (no es OR).
+  // OR real: añadir una segunda etiqueta amplía el resultado, no lo reduce (no es AND). Ácidos
+  // tiene Química, Otro tiene Química+Extra: con Química o Extra seleccionadas, ambos coinciden.
   await chooseTag('Extra')
-  expect(titles(wrapper)).toEqual(['Otro'])
+  expect(titles(wrapper)).toEqual(['Ácidos', 'Otro'])
 
   await wrapper.get('button[aria-label="Quitar etiqueta Química"]').trigger('click')
   expect(titles(wrapper)).toEqual(['Otro'])

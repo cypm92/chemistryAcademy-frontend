@@ -133,7 +133,8 @@ const filteredMaterials = computed(() => {
   const source = searchAllFolders.value ? materials.value : (activeFolder.value?.materials || [])
   if (searchMode.value === 'tags') {
     if (!selectedTags.value.length) return source
-    return source.filter((material) => selectedTags.value.every((tag) => (material.tags || []).some((itemTag) => itemTag.name === tag)))
+    // Filtro OR: un material coincide si tiene alguna de las etiquetas seleccionadas, no todas.
+    return source.filter((material) => selectedTags.value.some((tag) => (material.tags || []).some((itemTag) => itemTag.name === tag)))
   }
   const query = normalizeSearch(searchQuery.value)
   if (!query) return source
