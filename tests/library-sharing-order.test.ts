@@ -38,9 +38,10 @@ it('muestra las flechas después de eliminar', async () => {
   const buttons = wrapper.findAll('.material-card')[0].findAll('.card-actions > button')
   const actions = buttons.map(button => button.attributes('aria-label') || button.text())
   // El orden del DOM coincide con el orden visual/tabulación: fila 1 es
-  // Abrir · Editar · Mover · Eliminar · Subir; fila 2 termina en favorito/Bajar.
+  // Abrir · Editar · Mover · Eliminar · Subir; fila 2 termina en favorito/Bajar,
+  // seguida del botón de menú "⋮" (opciones ocultas tras el menú en móvil).
   expect(actions.slice(0, 5)).toEqual(['Abrir material', 'Editar material Primero', 'Mover', 'Eliminar', 'Subir Primero'])
-  expect(actions.slice(-3)).toEqual(['Compartido con: Primero', 'Añadir a favoritos', 'Bajar Primero'])
+  expect(actions.slice(-4)).toEqual(['Compartido con: Primero', 'Añadir a favoritos', 'Bajar Primero', 'Opciones de Primero'])
   wrapper.unmount()
 })
 it('mueve el foco al diálogo y lo devuelve al cerrarlo con Escape', async () => {
