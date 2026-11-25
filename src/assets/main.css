@@ -401,3 +401,25 @@ button.class-status:focus-visible, .class-request-actions button:focus-visible, 
   .folder-tile, .folder-tile-open { min-width:0 }
   .folder-tile b { overflow-wrap:anywhere }
 }
+
+/* Botones de LibraryMaterialCard pegados/solapados en móvil (reporte real de usuario en su
+   teléfono, ~360-390px). La tarjeta de .file-list da a .card-actions una columna de grid
+   "auto" de solo ~147px de ancho en ese rango (card 76px de icono + esta columna + paddings);
+   ahí la fila 1 (Abrir material·Editar·Mover·Eliminar·↑, 5 botones) no cabe en una sola línea y
+   el flex-wrap natural la parte en 2-3 sub-líneas DENTRO de la misma fila lógica, sin pasar por
+   ningún ".card-actions-break" (esos spans solo están ENTRE la fila 1 y la fila 2, no dentro de
+   la fila 1). Investigado en navegador real (Chromium, 392px de ancho — suelo mínimo de esta
+   herramienta de automatización, no se pudo bajar de ahí; igual sin solape en getBoundingClientRect
+   con el gap:6px actual, p.ej. "Abrir material" right=252.81 vs "Editar" left=258.81, hueco
+   real de 6px). Con el gap:6px de línea 21 (clamado, SIN media query, por eso ya se aplicaba
+   igual en escritorio ≥901px) la separación visual entre pastillas de colores vivos a este ancho
+   de columna es mínima y varios milímetros/variación de render (fuente de respaldo si el webfont
+   no carga, navegador más antiguo, densidad de píxel del teléfono real) pueden hacer que se lean
+   pegadas o literalmente solapadas, que es justo lo que describió el usuario. Fix: solo en móvil
+   (≤620px, no toca las filas de escritorio 901-1920px ni la posición de Eliminar) se amplía el
+   gap de .card-actions de 6px a 10px, dando aire real entre cada sub-línea de botones sin romper
+   ninguna fila. Verificado con varias tarjetas reales (tamaños/"Compartido con" distintos,
+   incluido el estado "Actualizando accesos…") sin solapes con getBoundingClientRect. */
+@media (max-width:620px) {
+  .card-actions { gap:10px }
+}
