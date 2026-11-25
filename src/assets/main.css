@@ -401,6 +401,8 @@ button.class-status:focus-visible, .class-request-actions button:focus-visible, 
   .folder-tiles { grid-template-columns:minmax(0,1fr) }
   .folder-tile, .folder-tile-open { min-width:0 }
   .folder-tile b { overflow-wrap:anywhere }
+  .file-list .material-info { grid-template-columns:minmax(0,1fr) }
+  .file-list .card-actions { grid-column:1; grid-row:auto; justify-content:flex-start }
 }
 
 /* Botones de LibraryMaterialCard pegados/solapados en móvil (reporte real de usuario en su

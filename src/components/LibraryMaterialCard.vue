@@ -162,26 +162,21 @@ async function toggleFavorite() {
     display: none;
   }
   .card-actions {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
+    display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 18px;
-    justify-items: center;
-    align-items: center;
+    justify-content: space-between;
   }
   .action-open {
-    grid-column: 2 / 4;
-    grid-row: 1;
-    justify-self: flex-end;
-    align-self: center;
+    order: 2;
   }
-  .action-up {
-    grid-column: 2;
-    grid-row: 2;
+  .action-mobile-menu {
+    order: 1;
   }
+  .action-up,
   .action-down {
-    grid-column: 3;
-    grid-row: 2;
+    order: 3;
   }
   .card-actions-break {
     display: none;
