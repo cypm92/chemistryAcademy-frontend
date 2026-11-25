@@ -37,7 +37,9 @@ it('muestra las flechas después de eliminar', async () => {
   const wrapper = mount(LibraryView, { global: { stubs: { MaterialViewer: true } } }); await flushPromises()
   const buttons = wrapper.findAll('.material-card')[0].findAll('.card-actions > button')
   const actions = buttons.map(button => button.attributes('aria-label') || button.text())
-  expect(actions.slice(-3)).toEqual(['Eliminar', 'Subir Primero', 'Bajar Primero'])
+  // El orden del DOM coincide con el orden visual/tabulación (fila 1 termina en Subir, fila 2
+  // termina en favorito/Bajar; Eliminar queda fuera de ambas filas, al final).
+  expect(actions.slice(-3)).toEqual(['Añadir a favoritos', 'Bajar Primero', 'Eliminar'])
   wrapper.unmount()
 })
 it('mueve el foco al diálogo y lo devuelve al cerrarlo con Escape', async () => {
